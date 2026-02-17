@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideas Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-hover: #1c1c1c;
+      --border: #252525;
+      --text: #e8e8e8;
+      --text-muted: #737373;
+      --accent: #c4f042;
+      --accent-dim: rgba(196, 240, 66, 0.08);
+      --radius: 12px;
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-mono: 'DM Mono', 'Courier New', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-weight: 300;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* --- Header --- */
+    .header {
+      padding: 3rem 2rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header h1 {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .header h1 em {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* --- Filter --- */
+    .filter-bar {
+      padding: 1rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+
+    .filter-bar .label {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-right: 0.5rem;
+    }
+
+    .tag-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.35rem 0.75rem;
+      border-radius: 100px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tag-btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text);
+    }
+
+    .tag-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    /* --- Grid --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      max-width: 1400px;
+      margin: 0 auto 4rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* --- Card --- */
+    .card {
+      background: var(--surface);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: background 0.3s ease;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      min-height: 220px;
+    }
+
+    .card:hover {
+      background: var(--surface-hover);
+    }
+
+    .card:hover .card-arrow {
+      transform: translate(3px, -3px);
+      opacity: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .card-type {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 400;
+      line-height: 1.2;
+      flex-grow: 1;
+    }
+
+    .card-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .card-tag {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .card-arrow {
+      font-size: 1.2rem;
+      color: var(--accent);
+      opacity: 0.4;
+      transition: all 0.3s ease;
+    }
+
+    /* --- Empty state --- */
+    .empty {
+      text-align: center;
+      padding: 6rem 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .empty p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    /* --- Counter --- */
+    .counter {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2rem 1rem;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* --- Loading --- */
+    .loading {
+      text-align: center;
+      padding: 6rem 2rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 768px) {
+      .header { padding: 2rem 1.25rem 1.5rem; }
+      .filter-bar { padding: 1rem 1.25rem; }
+      .grid { grid-template-columns: 1fr; margin: 0 1rem 3rem; }
+      .counter { padding: 0 1.25rem 1rem; }
+      .card { padding: 1.5rem; min-height: 180px; }
+    }
+
+    /* --- Fade in animation --- */
+    .card {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: fadeUp 0.4s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <h1>Ideas <em>Lab</em></h1>
+    <p>Daily experiments & prototypes</p>
+  </header>
+
+  <div class="filter-bar" id="filterBar">
+    <span class="label">Filter</span>
+    <button class="tag-btn active" data-tag="all">All</button>
+  </div>
+
+  <div class="counter" id="counter"></div>
+  <div id="app">
+    <div class="loading">Loading projects</div>
+  </div>
+
+  <script>
+    const app = document.getElementById('app');
+    const filterBar = document.getElementById('filterBar');
+    const counter = document.getElementById('counter');
+
+    let projects = [];
+    let activeTag = 'all';
+
+    async function init() {
+      try {
+        const res = await fetch('./manifest.json');
+        if (!res.ok) throw new Error('manifest.json not found');
+        projects = await res.json();
+
+        // 日付で降順ソート
+        projects.sort((a, b) => b.date.localeCompare(a.date));
+
+        // タグ一覧を生成
+        const allTags = [...new Set(projects.flatMap(p => p.tags))].sort();
+        allTags.forEach(tag => {
+          const btn = document.createElement('button');
+          btn.className = 'tag-btn';
+          btn.dataset.tag = tag;
+          btn.textContent = tag;
+          filterBar.appendChild(btn);
+        });
+
+        render();
+        bindFilters();
+      } catch (e) {
+        app.innerHTML = `
+          <div class="empty">
+            <p>No projects yet. Push your first project to get started.</p>
+          </div>`;
+        counter.textContent = '';
+      }
+    }
+
+    function render() {
+      const filtered = activeTag === 'all'
+        ? projects
+        : projects.filter(p => p.tags.includes(activeTag));
+
+      counter.textContent = `${filtered.length} project${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        app.innerHTML = `
+          <div class="empty">
+            <p>No projects match the selected filter.</p>
+          </div>`;
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+
+      filtered.forEach((project, i) => {
+        const card = document.createElement('a');
+        card.className = 'card';
+        card.href = `./${project.slug}/`;
+        card.style.animationDelay = `${i * 0.06}s`;
+
+        const tagsHtml = project.tags
+          .map(t => `<span class="card-tag">${t}</span>`)
+          .join('');
+
+        card.innerHTML = `
+          <div class="card-meta">
+            <span class="card-date">${project.date}</span>
+            <span class="card-type">${project.type}</span>
+          </div>
+          <div class="card-title">${project.title}</div>
+          ${project.description ? `<div class="card-desc">${project.description}</div>` : ''}
+          <div class="card-footer">
+            <div class="card-tags">${tagsHtml}</div>
+            <span class="card-arrow">↗</span>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      app.innerHTML = '';
+      app.appendChild(grid);
+    }
+
+    function bindFilters() {
+      filterBar.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('tag-btn')) return;
+        filterBar.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        activeTag = e.target.dataset.tag;
+        render();
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
