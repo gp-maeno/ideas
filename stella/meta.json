@@ -1,0 +1,7 @@
+{
+  "title": "Stella - 星座ビューア",
+  "description": "ジャイロセンサーで実際の方角に向けながら星座を確認。ヒッパルコス星表ベース、全88星座対応。",
+  "tags": ["3d", "astronomy", "three.js", "gyroscope", "spa"],
+  "date": "2025-02-17",
+  "type": "spa"
+}

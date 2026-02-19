@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Stella - 星座ビューア</title>
+<style>
+:root {
+  --bg: #020208;
+  --ui-bg: rgba(6,6,20,0.85);
+  --ui-border: rgba(80,100,160,0.25);
+  --accent: #7eb8f0;
+  --accent-dim: rgba(126,184,240,0.15);
+  --text: #c8d0e0;
+  --text-muted: #606880;
+  --constellation-line: rgba(80,140,220,0.35);
+  --constellation-highlight: rgba(120,180,255,0.7);
+  --font: 'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Hiragino Sans',Meiryo,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--font);color:var(--text);touch-action:none}
+canvas{display:block}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:1000;transition:opacity 0.6s}
+#loading.hidden{opacity:0;pointer-events:none}
+#loading h1{font-size:2rem;font-weight:200;letter-spacing:0.3em;margin-bottom:1rem}
+#loading .sub{font-size:0.8rem;color:var(--text-muted);letter-spacing:0.1em}
+#loading .bar{width:200px;height:2px;background:rgba(255,255,255,0.1);margin-top:1.5rem;border-radius:1px;overflow:hidden}
+#loading .bar .fill{width:0%;height:100%;background:var(--accent);transition:width 0.3s}
+.gyro-prompt{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,2,8,0.9);z-index:900}
+.gyro-prompt button{background:var(--accent);color:#000;border:none;padding:1rem 2.5rem;font-size:1rem;border-radius:8px;font-family:var(--font);cursor:pointer}
+.gyro-prompt.hidden{display:none}
+/* Top bar */
+#topbar{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1rem;z-index:100;pointer-events:none}
+#topbar>*{pointer-events:auto}
+#compass{width:48px;height:48px;border-radius:50%;background:var(--ui-bg);border:1px solid var(--ui-border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;letter-spacing:0.05em;color:var(--accent)}
+#info{text-align:right;font-size:0.65rem;color:var(--text-muted);line-height:1.6;background:var(--ui-bg);padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--ui-border)}
+/* Bottom panel trigger */
+#panel-toggle{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--ui-bg);border:1px solid var(--ui-border);color:var(--text);padding:0.6rem 1.5rem;border-radius:24px;font-size:0.75rem;font-family:var(--font);z-index:100;cursor:pointer;letter-spacing:0.08em;backdrop-filter:blur(8px)}
+/* Constellation panel */
+#panel{position:fixed;bottom:0;left:0;right:0;max-height:55vh;background:var(--ui-bg);border-top:1px solid var(--ui-border);backdrop-filter:blur(16px);z-index:200;transform:translateY(100%);transition:transform 0.35s cubic-bezier(.4,0,.2,1);overflow:hidden;display:flex;flex-direction:column;border-radius:16px 16px 0 0}
+#panel.open{transform:translateY(0)}
+#panel-header{padding:1rem;display:flex;gap:0.8rem;align-items:center;border-bottom:1px solid var(--ui-border);flex-shrink:0}
+#panel-header input{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--ui-border);color:var(--text);padding:0.5rem 0.8rem;border-radius:8px;font-size:0.8rem;font-family:var(--font);outline:none}
+#panel-header input::placeholder{color:var(--text-muted)}
+#panel-close{background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:0.3rem}
+#panel-tabs{display:flex;border-bottom:1px solid var(--ui-border);flex-shrink:0}
+.tab-btn{flex:1;background:none;border:none;color:var(--text-muted);padding:0.6rem;font-size:0.7rem;font-family:var(--font);cursor:pointer;letter-spacing:0.08em;border-bottom:2px solid transparent}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+#panel-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.constellation-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1px;padding:0.5rem}
+.const-item{padding:0.7rem 0.8rem;cursor:pointer;border-radius:6px;transition:background 0.15s}
+.const-item:active,.const-item:hover{background:var(--accent-dim)}
+.const-item .ja{font-size:0.85rem;display:block;margin-bottom:0.15rem}
+.const-item .latin{font-size:0.6rem;color:var(--text-muted);letter-spacing:0.04em}
+.const-item.active{background:var(--accent-dim);border:1px solid var(--accent)}
+/* Settings panel */
+.settings-content{padding:1rem}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0;border-bottom:1px solid var(--ui-border)}
+.setting-row label{font-size:0.8rem}
+.setting-row input[type=range]{width:120px;accent-color:var(--accent)}
+.toggle{width:42px;height:24px;background:rgba(255,255,255,0.15);border-radius:12px;position:relative;cursor:pointer;transition:background 0.2s}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform 0.2s}
+.toggle.on::after{transform:translateX(18px)}
+/* DateTime panel */
+.datetime-content{padding:1rem}
+.datetime-content label{display:block;font-size:0.7rem;color:var(--text-muted);margin-bottom:0.3rem;letter-spacing:0.05em}
+.datetime-content input,.datetime-content select{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--ui-border);color:var(--text);padding:0.5rem;border-radius:6px;font-family:var(--font);font-size:0.85rem;margin-bottom:0.8rem}
+.btn-row{display:flex;gap:0.5rem;margin-top:0.5rem}
+.btn-row button{flex:1;padding:0.6rem;border-radius:6px;border:1px solid var(--ui-border);background:var(--accent-dim);color:var(--accent);font-family:var(--font);font-size:0.75rem;cursor:pointer}
+.btn-row button.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+/* Selected constellation overlay */
+#constellation-label{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:1.6rem;font-weight:200;letter-spacing:0.2em;color:rgba(126,184,240,0.8);pointer-events:none;z-index:50;opacity:0;transition:opacity 0.5s;text-shadow:0 0 30px rgba(126,184,240,0.3)}
+#constellation-label.visible{opacity:1}
+/* Gallery link */
+#back-link{position:fixed;top:0.8rem;left:0.8rem;color:var(--text-muted);text-decoration:none;font-size:0.75rem;z-index:100;background:var(--ui-bg);padding:0.4rem 0.8rem;border-radius:6px;border:1px solid var(--ui-border)}
+#back-link:hover{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>STELLA</h1>
+  <div class="sub">星座ビューアを読み込み中</div>
+  <div class="bar"><div class="fill" id="loadbar"></div></div>
+</div>
+
+<div class="gyro-prompt hidden" id="gyroPrompt">
+  <button id="gyroBtn">ジャイロセンサーを有効にする</button>
+</div>
+
+<a id="back-link" href="../">← Gallery</a>
+
+<div id="topbar">
+  <div id="compass">N</div>
+  <div id="info">
+    <div id="info-time">--:--</div>
+    <div id="info-location">--</div>
+  </div>
+</div>
+
+<div id="constellation-label"></div>
+
+<button id="panel-toggle">☰ 星座一覧</button>
+
+<div id="panel">
+  <div id="panel-header">
+    <input type="text" id="search" placeholder="星座を検索...">
+    <button id="panel-close">✕</button>
+  </div>
+  <div id="panel-tabs">
+    <button class="tab-btn active" data-tab="constellations">星座</button>
+    <button class="tab-btn" data-tab="settings">表示設定</button>
+    <button class="tab-btn" data-tab="datetime">日時・場所</button>
+  </div>
+  <div id="panel-body">
+    <div id="tab-constellations" class="constellation-list"></div>
+    <div id="tab-settings" class="settings-content" style="display:none">
+      <div class="setting-row"><label>星座線</label><div class="toggle on" data-setting="showLines"></div></div>
+      <div class="setting-row"><label>星座名</label><div class="toggle on" data-setting="showNames"></div></div>
+      <div class="setting-row"><label>天の川</label><div class="toggle on" data-setting="showMilkyWay"></div></div>
+      <div class="setting-row"><label>地平線グリッド</label><div class="toggle" data-setting="showGrid"></div></div>
+      <div class="setting-row"><label>星の明るさ</label><input type="range" min="0.5" max="3" step="0.1" value="1.5" data-setting="starBrightness"></div>
+    </div>
+    <div id="tab-datetime" class="datetime-content" style="display:none">
+      <label>日付</label>
+      <input type="date" id="inp-date">
+      <label>時刻</label>
+      <input type="time" id="inp-time">
+      <label>緯度</label>
+      <input type="number" id="inp-lat" step="0.01" placeholder="35.68">
+      <label>経度</label>
+      <input type="number" id="inp-lon" step="0.01" placeholder="139.77">
+      <div class="btn-row">
+        <button id="btn-now" class="primary">現在に戻す</button>
+        <button id="btn-apply">適用</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// Stella - Constellation Viewer
+// ============================================================
+
+const DATA_BASE = 'https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/data/';
+const SPHERE_R = 500;
+
+// State
+const state = {
+  showLines: true, showNames: true, showMilkyWay: true, showGrid: false,
+  starBrightness: 1.5,
+  lat: 35.6812, lon: 139.7671, // Default: Tokyo
+  date: new Date(),
+  useGyro: false,
+  selectedConstellation: null,
+  gyroAlpha: 0, gyroBeta: 0, gyroGamma: 0
+};
+
+let scene, camera, renderer;
+let starPoints, constellationLines = {}, constellationLabels = {};
+let milkyWayMesh;
+let constellationData = {}, starData = [], starMap = {};
+let touchStartX, touchStartY, camTheta = Math.PI/2, camPhi = 0;
+let isGyroAvailable = false;
+
+// ============================================================
+// Data Loading
+// ============================================================
+async function loadData() {
+  const lb = document.getElementById('loadbar');
+  lb.style.width = '10%';
+
+  const urls = {
+    stars: DATA_BASE + 'stars.6.json',
+    lines: DATA_BASE + 'constellations.lines.json',
+    names: DATA_BASE + 'constellations.json',
+    mw: DATA_BASE + 'mw.json',
+    starnames: DATA_BASE + 'starnames.json'
+  };
+
+  const results = {};
+  const keys = Object.keys(urls);
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const resp = await fetch(urls[keys[i]]);
+      results[keys[i]] = await resp.json();
+    } catch(e) {
+      console.warn(`Failed to load ${keys[i]}:`, e);
+      results[keys[i]] = null;
+    }
+    lb.style.width = (10 + (i+1)/keys.length * 60) + '%';
+  }
+  return results;
+}
+
+// ============================================================
+// Coordinate Conversions
+// ============================================================
+
+// d3-celestial longitude to RA in degrees (0-360)
+function lonToRA(lon) {
+  return lon < 0 ? 360 + lon : lon;
+}
+
+// RA(deg), Dec(deg) -> Three.js XYZ on sphere of radius R
+function radecToXYZ(raDeg, decDeg, R) {
+  const ra = raDeg * Math.PI / 180;
+  const dec = decDeg * Math.PI / 180;
+  return new THREE.Vector3(
+    R * Math.cos(dec) * Math.cos(ra),
+    R * Math.sin(dec),
+    -R * Math.cos(dec) * Math.sin(ra)
+  );
+}
+
+// B-V color index to RGB
+function bvToColor(bv) {
+  bv = Math.max(-0.4, Math.min(2.0, parseFloat(bv) || 0));
+  let r, g, b;
+  if (bv < 0) { r = 0.7 - bv*0.5; g = 0.8 - bv*0.3; b = 1.0; }
+  else if (bv < 0.4) { r = 0.8 + bv*0.5; g = 0.85 + bv*0.2; b = 1.0 - bv*0.3; }
+  else if (bv < 0.8) { r = 1.0; g = 1.0 - (bv-0.4)*0.6; b = 0.7 - (bv-0.4)*0.8; }
+  else { r = 1.0; g = 0.7 - (bv-0.8)*0.4; b = Math.max(0.1, 0.3 - (bv-0.8)*0.3); }
+  return new THREE.Color(Math.min(1,r), Math.min(1,g), Math.min(1,b));
+}
+
+// Magnitude to point size
+function magToSize(mag) {
+  return Math.max(0.5, (7 - mag) * state.starBrightness);
+}
+
+// ============================================================
+// Sidereal Time & Horizon Rotation
+// ============================================================
+function julianDate(date) {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth() + 1;
+  const d = date.getUTCDate();
+  const h = date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600;
+  let yy = y, mm = m;
+  if (mm <= 2) { yy -= 1; mm += 12; }
+  const A = Math.floor(yy / 100);
+  const B = 2 - A + Math.floor(A / 4);
+  return Math.floor(365.25 * (yy + 4716)) + Math.floor(30.6001 * (mm + 1)) + d + h/24 + B - 1524.5;
+}
+
+function greenwichSiderealTime(jd) {
+  const T = (jd - 2451545.0) / 36525.0;
+  let gst = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + T*T * 0.000387933 - T*T*T / 38710000;
+  return ((gst % 360) + 360) % 360;
+}
+
+function localSiderealTime(jd, lonDeg) {
+  return (greenwichSiderealTime(jd) + lonDeg + 360) % 360;
+}
+
+// ============================================================
+// Scene Setup
+// ============================================================
+function initScene() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x020208);
+  document.body.appendChild(renderer.domElement);
+}
+
+// ============================================================
+// Stars
+// ============================================================
+function createStars(data) {
+  if (!data || !data.features) return;
+  const count = data.features.length;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+
+  data.features.forEach((f, i) => {
+    const lon = f.geometry.coordinates[0];
+    const lat = f.geometry.coordinates[1];
+    const ra = lonToRA(lon);
+    const dec = lat;
+    const pos = radecToXYZ(ra, dec, SPHERE_R);
+
+    positions[i*3] = pos.x;
+    positions[i*3+1] = pos.y;
+    positions[i*3+2] = pos.z;
+
+    const col = bvToColor(f.properties.bv);
+    colors[i*3] = col.r;
+    colors[i*3+1] = col.g;
+    colors[i*3+2] = col.b;
+
+    sizes[i] = magToSize(f.properties.mag);
+
+    // Store for constellation line lookups
+    starMap[f.id] = { ra, dec, pos, mag: f.properties.mag };
+  });
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const vertexShader = `
+    attribute float size;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (200.0 / -mvPosition.z);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+  const fragmentShader = `
+    varying vec3 vColor;
+    void main() {
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float alpha = smoothstep(0.5, 0.0, d);
+      float glow = exp(-d * 4.0) * 0.6;
+      gl_FragColor = vec4(vColor * (alpha + glow), alpha + glow * 0.3);
+    }
+  `;
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  starPoints = new THREE.Points(geom, mat);
+  scene.add(starPoints);
+}
+
+// ============================================================
+// Constellation Lines
+// ============================================================
+function createConstellationLines(linesData, namesData) {
+  if (!linesData || !linesData.features) return;
+
+  // Build name lookup (ja)
+  const nameMap = {};
+  if (namesData && namesData.features) {
+    namesData.features.forEach(f => {
+      nameMap[f.id] = {
+        name: f.properties.name,
+        ja: f.properties.ja || f.properties.name,
+        display: f.properties.display
+      };
+    });
+  }
+
+  linesData.features.forEach(f => {
+    const id = f.id;
+    const info = nameMap[id] || { name: id, ja: id };
+    constellationData[id] = info;
+
+    // Draw lines from MultiLineString coordinates
+    const coords = f.geometry.coordinates;
+    const linePositions = [];
+
+    coords.forEach(segment => {
+      for (let i = 0; i < segment.length - 1; i++) {
+        const ra1 = lonToRA(segment[i][0]);
+        const dec1 = segment[i][1];
+        const ra2 = lonToRA(segment[i+1][0]);
+        const dec2 = segment[i+1][1];
+        const p1 = radecToXYZ(ra1, dec1, SPHERE_R * 0.998);
+        const p2 = radecToXYZ(ra2, dec2, SPHERE_R * 0.998);
+        linePositions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+      }
+    });
+
+    if (linePositions.length === 0) return;
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x5090dc,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+
+    const lines = new THREE.LineSegments(geom, mat);
+    lines.visible = state.showLines;
+    scene.add(lines);
+    constellationLines[id] = lines;
+
+    // Create label at center of constellation
+    if (info.display && info.display.length >= 2) {
+      const cra = lonToRA(info.display[0] || 0);
+      const cdec = info.display[1] || 0;
+      // Store label position for screen projection
+      constellationLabels[id] = {
+        pos: radecToXYZ(cra, cdec, SPHERE_R * 0.99),
+        text: info.ja
+      };
+    }
+  });
+}
+
+// ============================================================
+// Milky Way
+// ============================================================
+function createMilkyWay(mwData) {
+  if (!mwData || !mwData.features) return;
+
+  const particleCount = 15000;
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const sizes = new Float32Array(particleCount);
+
+  // Extract milky way polygon outlines and fill with particles
+  const allCoords = [];
+  mwData.features.forEach(f => {
+    if (f.geometry && f.geometry.coordinates) {
+      f.geometry.coordinates.forEach(polygon => {
+        const ring = Array.isArray(polygon[0][0]) ? polygon[0] : polygon;
+        ring.forEach(c => allCoords.push(c));
+      });
+    }
+  });
+
+  // Generate particles along the galactic plane with dispersion
+  for (let i = 0; i < particleCount; i++) {
+    let ra, dec;
+    if (allCoords.length > 0 && Math.random() < 0.7) {
+      // Pick a random coordinate from MW data and add noise
+      const base = allCoords[Math.floor(Math.random() * allCoords.length)];
+      ra = lonToRA(base[0]) + (Math.random() - 0.5) * 15;
+      dec = base[1] + (Math.random() - 0.5) * 8;
+    } else {
+      // Galactic plane approximation (inclined ~62.9° to celestial equator)
+      const glon = Math.random() * 360;
+      const glat = (Math.random() - 0.5) * 12; // narrow band
+      // Simplified galactic to equatorial
+      const l = glon * Math.PI / 180;
+      const b = glat * Math.PI / 180;
+      const NGP_RA = 192.85948 * Math.PI / 180;
+      const NGP_DEC = 27.12825 * Math.PI / 180;
+      const ASC_NODE = 32.93192 * Math.PI / 180;
+
+      const sinDec = Math.sin(NGP_DEC)*Math.sin(b) + Math.cos(NGP_DEC)*Math.cos(b)*Math.cos(l - ASC_NODE);
+      dec = Math.asin(sinDec) * 180 / Math.PI;
+      const y = Math.cos(b) * Math.sin(l - ASC_NODE);
+      const x = Math.cos(NGP_DEC)*Math.sin(b) - Math.sin(NGP_DEC)*Math.cos(b)*Math.cos(l - ASC_NODE);
+      ra = (Math.atan2(y, x) + NGP_RA) * 180 / Math.PI;
+      ra = ((ra % 360) + 360) % 360;
+    }
+
+    const pos = radecToXYZ(ra, dec, SPHERE_R * 0.997 + Math.random() * 2);
+    positions[i*3] = pos.x;
+    positions[i*3+1] = pos.y;
+    positions[i*3+2] = pos.z;
+
+    // Soft blue-white color with variation
+    const brightness = 0.3 + Math.random() * 0.4;
+    colors[i*3] = brightness * (0.7 + Math.random() * 0.3);
+    colors[i*3+1] = brightness * (0.75 + Math.random() * 0.25);
+    colors[i*3+2] = brightness * (0.85 + Math.random() * 0.15);
+
+    sizes[i] = 1.0 + Math.random() * 3.0;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const vertexShader = `
+    attribute float size;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (150.0 / -mvPosition.z);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+  const fragmentShader = `
+    varying vec3 vColor;
+    void main() {
+      float d = length(gl_PointCoord - vec2(0.5));
+      if (d > 0.5) discard;
+      float alpha = exp(-d * 3.0) * 0.25;
+      gl_FragColor = vec4(vColor, alpha);
+    }
+  `;
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader, fragmentShader,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  milkyWayMesh = new THREE.Points(geom, mat);
+  milkyWayMesh.visible = state.showMilkyWay;
+  scene.add(milkyWayMesh);
+}
+
+// ============================================================
+// Horizon Grid
+// ============================================================
+function createHorizonGrid() {
+  // Azimuth circles
+  const gridGroup = new THREE.Group();
+  gridGroup.name = 'grid';
+  gridGroup.visible = state.showGrid;
+
+  for (let alt = 0; alt <= 80; alt += 20) {
+    const points = [];
+    for (let az = 0; az <= 360; az += 2) {
+      const a = az * Math.PI / 180;
+      const al = alt * Math.PI / 180;
+      const r = SPHERE_R * 0.99;
+      points.push(new THREE.Vector3(
+        r * Math.cos(al) * Math.sin(a),
+        r * Math.sin(al),
+        -r * Math.cos(al) * Math.cos(a)
+      ));
+    }
+    const geom = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({ color: 0x304060, transparent: true, opacity: 0.15 });
+    gridGroup.add(new THREE.Line(geom, mat));
+  }
+  scene.add(gridGroup);
+}
+
+// ============================================================
+// Earth/Horizon - dark hemisphere below
+// ============================================================
+function createHorizon() {
+  const geom = new THREE.SphereGeometry(SPHERE_R * 0.2, 32, 16, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x020208, side: THREE.DoubleSide });
+  const horizon = new THREE.Mesh(geom, mat);
+  horizon.rotation.x = Math.PI;
+  // We'll rotate this based on observer position
+  scene.add(horizon);
+}
+
+// ============================================================
+// Camera & Gyro
+// ============================================================
+function updateCameraFromAngles() {
+  const theta = camTheta;
+  const phi = camPhi;
+  const target = new THREE.Vector3(
+    Math.sin(theta) * Math.cos(phi),
+    Math.cos(theta),
+    Math.sin(theta) * Math.sin(phi)
+  );
+  camera.lookAt(target.multiplyScalar(SPHERE_R));
+}
+
+function setupGyro() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+
+    document.getElementById('gyroPrompt').classList.remove('hidden');
+    document.getElementById('gyroBtn').addEventListener('click', async () => {
+      try {
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if (perm === 'granted') {
+          enableGyro();
+        }
+      } catch(e) { console.warn('Gyro permission denied', e); }
+      document.getElementById('gyroPrompt').classList.add('hidden');
+    });
+  } else if ('DeviceOrientationEvent' in window) {
+    // Android / desktop
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.alpha !== null) {
+        enableGyro();
+      }
+    }, { once: true });
+  }
+}
+
+function enableGyro() {
+  state.useGyro = true;
+  isGyroAvailable = true;
+  window.addEventListener('deviceorientation', (e) => {
+    state.gyroAlpha = (e.alpha || 0) * Math.PI / 180;
+    state.gyroBeta = (e.beta || 0) * Math.PI / 180;
+    state.gyroGamma = (e.gamma || 0) * Math.PI / 180;
+  });
+}
+
+function updateCameraFromGyro() {
+  if (!state.useGyro) return;
+  const alpha = state.gyroAlpha;
+  const beta = state.gyroBeta;
+  const gamma = state.gyroGamma;
+
+  // Convert device orientation to camera direction
+  const euler = new THREE.Euler(beta - Math.PI/2, alpha, -gamma, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+}
+
+// ============================================================
+// Touch Controls (fallback)
+// ============================================================
+function setupTouch() {
+  const el = renderer.domElement;
+  let touching = false;
+
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touching = true;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    if (!touching || state.useGyro) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    camPhi -= dx * 0.005;
+    camTheta = Math.max(0.1, Math.min(Math.PI - 0.1, camTheta + dy * 0.005));
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => { touching = false; }, { passive: true });
+
+  // Mouse fallback
+  let mouseDown = false;
+  el.addEventListener('mousedown', (e) => { mouseDown = true; touchStartX = e.clientX; touchStartY = e.clientY; });
+  el.addEventListener('mousemove', (e) => {
+    if (!mouseDown || state.useGyro) return;
+    const dx = e.clientX - touchStartX;
+    const dy = e.clientY - touchStartY;
+    camPhi -= dx * 0.003;
+    camTheta = Math.max(0.1, Math.min(Math.PI - 0.1, camTheta + dy * 0.003));
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+  });
+  el.addEventListener('mouseup', () => { mouseDown = false; });
+}
+
+// ============================================================
+// Sky Rotation (sidereal time + observer latitude)
+// ============================================================
+function updateSkyRotation() {
+  if (!starPoints) return;
+  const jd = julianDate(state.date);
+  const lst = localSiderealTime(jd, state.lon);
+  const latRad = state.lat * Math.PI / 180;
+  const lstRad = lst * Math.PI / 180;
+
+  // Rotate entire sky: first by LST around Y, then tilt by (90-lat) around Z
+  const skyGroup = scene;
+  // We apply rotation to all sky objects
+  [starPoints, milkyWayMesh, ...Object.values(constellationLines)].forEach(obj => {
+    if (!obj) return;
+    obj.rotation.set(0, 0, 0);
+    // Rotate by latitude (tilt the celestial pole to correct altitude)
+    obj.rotation.x = -(Math.PI/2 - latRad);
+    // Rotate by local sidereal time
+    obj.rotation.y = -lstRad;
+  });
+}
+
+// ============================================================
+// Constellation Labels (2D overlay)
+// ============================================================
+function renderLabels() {
+  // Use CSS labels projected from 3D
+  if (!state.showNames) return;
+
+  const label = document.getElementById('constellation-label');
+  if (state.selectedConstellation && constellationLabels[state.selectedConstellation]) {
+    const info = constellationLabels[state.selectedConstellation];
+    label.textContent = info.text;
+    label.classList.add('visible');
+  } else {
+    label.classList.remove('visible');
+  }
+}
+
+// ============================================================
+// Constellation Selection & Navigation
+// ============================================================
+function selectConstellation(id) {
+  // Reset previous highlight
+  if (state.selectedConstellation && constellationLines[state.selectedConstellation]) {
+    constellationLines[state.selectedConstellation].material.opacity = 0.3;
+    constellationLines[state.selectedConstellation].material.color.setHex(0x5090dc);
+  }
+
+  state.selectedConstellation = id;
+
+  // Highlight selected
+  if (constellationLines[id]) {
+    constellationLines[id].material.opacity = 0.7;
+    constellationLines[id].material.color.setHex(0x78b4ff);
+  }
+
+  // Navigate camera to constellation center
+  if (constellationLabels[id] && !state.useGyro) {
+    const pos = constellationLabels[id].pos;
+    const target = pos.clone().normalize();
+    // Convert to theta/phi
+    camTheta = Math.acos(target.y);
+    camPhi = Math.atan2(target.z, target.x);
+  }
+
+  renderLabels();
+
+  // Update UI
+  document.querySelectorAll('.const-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+}
+
+// ============================================================
+// UI Setup
+// ============================================================
+function setupUI() {
+  // Panel toggle
+  const panel = document.getElementById('panel');
+  document.getElementById('panel-toggle').addEventListener('click', () => panel.classList.add('open'));
+  document.getElementById('panel-close').addEventListener('click', () => panel.classList.remove('open'));
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-constellations').style.display = btn.dataset.tab === 'constellations' ? '' : 'none';
+      document.getElementById('tab-settings').style.display = btn.dataset.tab === 'settings' ? '' : 'none';
+      document.getElementById('tab-datetime').style.display = btn.dataset.tab === 'datetime' ? '' : 'none';
+    });
+  });
+
+  // Settings toggles
+  document.querySelectorAll('.toggle').forEach(el => {
+    el.addEventListener('click', () => {
+      el.classList.toggle('on');
+      const key = el.dataset.setting;
+      state[key] = el.classList.contains('on');
+      applySettings();
+    });
+  });
+
+  // Star brightness slider
+  document.querySelector('[data-setting="starBrightness"]').addEventListener('input', (e) => {
+    state.starBrightness = parseFloat(e.target.value);
+    updateStarSizes();
+  });
+
+  // DateTime
+  const now = new Date();
+  document.getElementById('inp-date').value = now.toISOString().split('T')[0];
+  document.getElementById('inp-time').value = now.toTimeString().slice(0,5);
+  document.getElementById('inp-lat').value = state.lat;
+  document.getElementById('inp-lon').value = state.lon;
+
+  document.getElementById('btn-now').addEventListener('click', () => {
+    state.date = new Date();
+    const n = new Date();
+    document.getElementById('inp-date').value = n.toISOString().split('T')[0];
+    document.getElementById('inp-time').value = n.toTimeString().slice(0,5);
+    requestCurrentPosition();
+  });
+
+  document.getElementById('btn-apply').addEventListener('click', () => {
+    const d = document.getElementById('inp-date').value;
+    const t = document.getElementById('inp-time').value;
+    state.date = new Date(`${d}T${t}`);
+    state.lat = parseFloat(document.getElementById('inp-lat').value) || 35.68;
+    state.lon = parseFloat(document.getElementById('inp-lon').value) || 139.77;
+  });
+
+  // Search
+  document.getElementById('search').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.const-item').forEach(el => {
+      const text = (el.querySelector('.ja').textContent + el.querySelector('.latin').textContent).toLowerCase();
+      el.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+}
+
+function populateConstellationList() {
+  const list = document.getElementById('tab-constellations');
+  const sorted = Object.entries(constellationData).sort((a,b) => (a[1].ja||'').localeCompare(b[1].ja||'', 'ja'));
+
+  sorted.forEach(([id, info]) => {
+    const el = document.createElement('div');
+    el.className = 'const-item';
+    el.dataset.id = id;
+    el.innerHTML = `<span class="ja">${info.ja}</span><span class="latin">${info.name}</span>`;
+    el.addEventListener('click', () => {
+      selectConstellation(id);
+      document.getElementById('panel').classList.remove('open');
+    });
+    list.appendChild(el);
+  });
+}
+
+function applySettings() {
+  Object.values(constellationLines).forEach(l => { l.visible = state.showLines; });
+  if (milkyWayMesh) milkyWayMesh.visible = state.showMilkyWay;
+  const grid = scene.children.find(c => c.name === 'grid');
+  if (grid) grid.visible = state.showGrid;
+  renderLabels();
+}
+
+function updateStarSizes() {
+  if (!starPoints) return;
+  // We'd need to regenerate sizes - simplified: adjust shader uniform
+  // For now, just rebuild
+}
+
+// ============================================================
+// Geolocation
+// ============================================================
+function requestCurrentPosition() {
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        state.lat = pos.coords.latitude;
+        state.lon = pos.coords.longitude;
+        document.getElementById('inp-lat').value = state.lat.toFixed(4);
+        document.getElementById('inp-lon').value = state.lon.toFixed(4);
+      },
+      () => { /* Use default Tokyo */ },
+      { timeout: 5000 }
+    );
+  }
+}
+
+// ============================================================
+// Info Display
+// ============================================================
+function updateInfo() {
+  const now = state.date;
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('info-time').textContent = `${h}:${m}`;
+  document.getElementById('info-location').textContent = `${state.lat.toFixed(1)}°N ${state.lon.toFixed(1)}°E`;
+
+  // Compass
+  let heading = 0;
+  if (state.useGyro) {
+    heading = (state.gyroAlpha * 180 / Math.PI);
+  } else {
+    heading = (-camPhi * 180 / Math.PI + 360) % 360;
+  }
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  const dir = dirs[Math.round(heading / 45) % 8];
+  document.getElementById('compass').textContent = dir;
+}
+
+// ============================================================
+// Animation Loop
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Update time continuously if using "now"
+  if (document.getElementById('btn-now').dataset.active !== 'false') {
+    state.date = new Date();
+  }
+
+  updateSkyRotation();
+
+  if (state.useGyro) {
+    updateCameraFromGyro();
+  } else {
+    updateCameraFromAngles();
+  }
+
+  updateInfo();
+  renderer.render(scene, camera);
+}
+
+// ============================================================
+// Resize
+// ============================================================
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ============================================================
+// Init
+// ============================================================
+async function init() {
+  initScene();
+  setupTouch();
+  setupGyro();
+  setupUI();
+  requestCurrentPosition();
+
+  const data = await loadData();
+  const lb = document.getElementById('loadbar');
+
+  lb.style.width = '75%';
+  createStars(data.stars);
+
+  lb.style.width = '85%';
+  createConstellationLines(data.lines, data.names);
+  populateConstellationList();
+
+  lb.style.width = '92%';
+  createMilkyWay(data.mw);
+  createHorizonGrid();
+
+  lb.style.width = '100%';
+
+  window.addEventListener('resize', onResize);
+
+  // Hide loading
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+    animate();
+  }, 500);
+}
+
+init();
+</script>
+</body>
+</html>
