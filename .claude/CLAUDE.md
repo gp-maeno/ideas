@@ -48,7 +48,8 @@ git config http.proxyAuthMethod basic
 }
 ```
 
-省略時: title=ディレクトリ名、date=gitコミット日
+- `date`: 作業日の日付（日本時間 JST）を設定する。省略しない
+- `title`: 省略時はディレクトリ名
 
 ### ギャラリー除外対象
 
