@@ -12,8 +12,11 @@ ideas/
 ├── assets/                  ← ギャラリー共通アセット
 │   ├── css/gallery.css      ← カスタムCSS（アニメーション等）
 │   └── js/gallery.js        ← Alpine.jsデータストア
-├── stella/                  ← プロジェクト例
-│   ├── index.html
+├── stella/                  ← プロジェクト例（自己完結型）
+│   ├── index.html           ← HTML構造のみ
+│   ├── assets/
+│   │   ├── css/stella.css   ← スタイル
+│   │   └── js/stella.js     ← Three.jsアプリロジック
 │   └── meta.json
 ├── _scripts/                ← ビルドスクリプト
 ├── _samples/                ← テンプレート
@@ -32,9 +35,18 @@ ideas/
 ## 新規プロジェクトの追加方法
 
 1. ルート直下にディレクトリを作成（例: `my-project/`）
-2. `index.html` を配置
-3. `meta.json` を配置（任意だが推奨）
-4. `main` ブランチに push → 自動でギャラリーに反映
+2. `assets/css/`, `assets/js/` を作成
+3. CSS/JS を外部ファイルとして配置
+4. `index.html` を配置（HTML構造のみ、CSS/JS は外部参照）
+5. `meta.json` を配置（任意だが推奨）
+6. `main` ブランチに push → 自動でギャラリーに反映
+
+### プロジェクト構成の原則
+
+- 各プロジェクトは **ディレクトリ内で自己完結** させる
+- `index.html` は HTML 構造のみ。CSS/JS は `assets/` 配下に分離
+- ルートの `assets/` は参照しない（ギャラリー専用）
+- ライブラリは CDN から読み込み（npm/ビルドステップ不要）
 
 ### meta.json の書式
 
