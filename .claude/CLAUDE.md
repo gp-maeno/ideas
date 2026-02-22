@@ -6,13 +6,20 @@
 
 ```
 ideas/
-├── index.html            ← ギャラリートップ（manifest.jsonを動的読み込み）
-├── manifest.json          ← 自動生成（.gitignore対象）
-├── <project>/index.html   ← 各コンテンツのエントリーポイント
-├── <project>/meta.json    ← メタ情報（任意）
-├── _scripts/              ← ビルドスクリプト
-├── .plan/                 ← 実装計画書
-└── .github/workflows/     ← CI/CD
+├── index.html              ← ギャラリートップ（Tailwind CSS + Alpine.js）
+├── manifest.json            ← 自動生成（.gitignore対象）
+├── assets/                  ← ギャラリー共通アセット
+│   ├── css/gallery.css
+│   └── js/gallery.js
+├── <project>/               ← 各プロジェクト（自己完結型）
+│   ├── index.html           ← エントリーポイント（HTML構造のみ）
+│   ├── assets/              ← プロジェクト固有のCSS/JS
+│   │   ├── css/<name>.css
+│   │   └── js/<name>.js
+│   └── meta.json            ← メタ情報
+├── _scripts/                ← ビルドスクリプト
+├── .plan/                   ← 実装計画書
+└── .github/workflows/       ← CI/CD
 ```
 
 ## デプロイ
@@ -28,13 +35,38 @@ git config http.proxy "$https_proxy"
 git config http.proxyAuthMethod basic
 ```
 
+---
+
 ## コンテンツ制作ルール
 
-- 各コンテンツは `index.html` 1ファイルで完結させる（CSS/JSもインライン）
+### ファイル構成
+
+- `index.html` はHTML構造のみ。CSS/JSは `assets/` 配下に分離する
+  - CSS → `<project>/assets/css/<name>.css`
+  - JS → `<project>/assets/js/<name>.js`
+- プロジェクト内のファイルは **そのディレクトリ内で自己完結** させる（ルートの `assets/` は参照しない）
 - ライブラリはCDN読み込み。npm/ビルドステップ不要
 - GitHub Pages互換（静的ファイルのみ、サーバー処理不可）
 - SPAのルーティングはハッシュルーター推奨
-- `← Gallery` への戻りリンクを必ず含める
+
+### 必須要素
+
+- `← Gallery` への戻りリンク（`<a href="../">` 形式）
+- `lang="ja"` 属性
+- viewport meta タグ
+
+### ライブラリ選定の指針
+
+プロジェクトの特性に応じて適切なライブラリを選ぶ:
+
+| 種類 | 推奨 | 用途 |
+|---|---|---|
+| UI/フォーム系 | Tailwind CSS (CDN) + Alpine.js | フィルター、リアクティブUI |
+| 3D/WebGL | Three.js + CSS変数 | 3D描画（Tailwind不要） |
+| Canvas/2D | 素のCanvas API or p5.js | 2Dアニメーション |
+| シンプルな静的 | CSS変数 + Vanilla JS | 最小構成 |
+
+**注意:** Tailwind CSSはUI要素が多いページで有効。Three.jsフルスクリーンアプリ等、カスタムCSSが主体の場合はCSS変数ベースの方が適切。
 
 ### meta.json
 
@@ -55,20 +87,48 @@ git config http.proxyAuthMethod basic
 
 `_` `.` で始まるディレクトリ、`assets`
 
+---
+
+## ギャラリートップ（確定済み）
+
+ギャラリーのデザイン・構成は確定済み。変更時はユーザー確認が必要。
+
+### 技術スタック
+
+| ライブラリ | 用途 |
+|---|---|
+| Tailwind CSS (CDN) | スタイリング |
+| Alpine.js 3.14 | リアクティブUI・フィルター |
+| Inter + Noto Sans JP | 見出し・本文フォント |
+| DM Mono | メタ情報用等幅フォント |
+
+### デザイン仕様
+
+- 正方形グリッドカード（`aspect-ratio: 1/1`、モバイルでは `auto`）
+- ダークテーマ（`#0a0a0a` ベース）
+- アクセントカラー: `#c4f042`
+- レスポンシブ: 3段階（デスクトップ auto-fill / タブレット 2列 / モバイル 1列）
+
+---
+
 ## コードスタイル
 
-- `lang="ja"`、viewport meta 必須
 - CSS変数でテーマ管理、ダークテーマがデフォルト
 - モバイルファースト、レスポンシブ必須
 - ES2020+、`const`/`let`のみ、async/await
 - `var` 禁止
+- `innerHTML` は使用しない（`textContent` + DOM API を使う）
+- JSコメントは日本語
+
+---
 
 ## デザイン
 
-- ギャラリーのデザインは確定済（変更時はユーザー確認）
 - 各コンテンツは独自のデザインで自由に。汎用的・無個性なデザインは避ける
 - スマホでの動作を最優先、初回ロード3秒以内目標
 - 重いアセットにはローディング表示を入れる
+
+---
 
 ## ワークフロー
 
