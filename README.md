@@ -1,21 +1,33 @@
 # Ideas Lab
 
-日々のアイデアをカタチにするプロトタイプ・モック集。  
+日々のアイデアをカタチにするプロトタイプ・モック集。
 GitHub Pages で自動デプロイされ、ギャラリーから一覧で閲覧可能。
 
 ## 構成
 
 ```
 ideas/
-├── index.html              ← ギャラリートップ（自動生成されたmanifest.jsonを読む）
+├── index.html              ← ギャラリートップ（Tailwind CSS + Alpine.js）
 ├── manifest.json            ← GitHub Actionsで自動生成
-├── hello-world/             ← プロジェクト例
+├── assets/                  ← ギャラリー共通アセット
+│   ├── css/gallery.css      ← カスタムCSS（アニメーション等）
+│   └── js/gallery.js        ← Alpine.jsデータストア
+├── stella/                  ← プロジェクト例
 │   ├── index.html
 │   └── meta.json
 ├── _scripts/                ← ビルドスクリプト
 ├── _samples/                ← テンプレート
 └── .github/workflows/       ← CI/CD
 ```
+
+## 技術スタック（ギャラリー）
+
+| ライブラリ | 用途 |
+|---|---|
+| [Tailwind CSS](https://tailwindcss.com/) (CDN) | スタイリング |
+| [Alpine.js](https://alpinejs.dev/) 3.14 | リアクティブUI・フィルター機能 |
+| [Inter](https://fonts.google.com/specimen/Inter) + [Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) | フォント |
+| DM Mono | メタ情報用等幅フォント |
 
 ## 新規プロジェクトの追加方法
 
@@ -42,12 +54,12 @@ ideas/
 | `description` | - | ギャラリーに表示する説明文 |
 | `tags` | - | フィルター用タグ |
 | `date` | - | 作成日（省略時はgitコミット日） |
-| `type` | - | `static` / `spa` / `react` / `vue` 等 |
+| `type` | - | `static` / `spa` / `three.js` 等 |
 | `thumbnail` | - | サムネイル画像パス（将来用） |
 
 ## SPA プロジェクトの注意点
 
-GitHub Pages は静的ホスティングのため、SPA のクライアントサイドルーティングで  
+GitHub Pages は静的ホスティングのため、SPA のクライアントサイドルーティングで
 ブラウザリロード時に 404 になる場合があります。
 
 対処法:
