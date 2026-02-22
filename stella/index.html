@@ -60,6 +60,7 @@ canvas{display:block}
 .setting-row{display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0;border-bottom:1px solid var(--ui-border)}
 .setting-row label{font-size:0.8rem}
 .setting-row input[type=range]{width:120px;accent-color:var(--accent)}
+.setting-row select{background:rgba(255,255,255,0.06);border:1px solid var(--ui-border);color:var(--text);padding:0.35rem 0.5rem;border-radius:6px;font-family:var(--font);font-size:0.8rem}
 .toggle{width:42px;height:24px;background:rgba(255,255,255,0.15);border-radius:12px;position:relative;cursor:pointer;transition:background 0.2s}
 .toggle.on{background:var(--accent)}
 .toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform 0.2s}
@@ -98,6 +99,7 @@ canvas{display:block}
       <div class="setting-row"><label>天の川</label><div class="toggle on" data-setting="showMilkyWay"></div></div>
       <div class="setting-row"><label>地平線グリッド</label><div class="toggle" data-setting="showGrid"></div></div>
       <div class="setting-row"><label>星の明るさ</label><input type="range" min="0.5" max="5" step="0.1" value="2.5" data-setting="starBrightness"></div>
+      <div class="setting-row"><label>表示する星</label><select id="mag-limit"><option value="3">3等星まで（明るい星のみ）</option><option value="4">4等星まで</option><option value="5">5等星まで</option><option value="6" selected>6等星まで（すべて）</option></select></div>
     </div>
     <div id="tab-datetime" class="datetime-content" style="display:none">
       <label>日付</label><input type="date" id="inp-date">
@@ -112,7 +114,7 @@ canvas{display:block}
 <script>
 const DATA_BASE='https://cdn.jsdelivr.net/gh/ofrohn/d3-celestial@master/data/';
 const SPHERE_R=500;
-const state={showLines:true,showNames:true,showMilkyWay:true,showGrid:false,starBrightness:2.5,lat:35.6812,lon:139.7671,date:new Date(),useGyro:false,selectedConstellation:null,gyroAlpha:0,gyroBeta:0,gyroGamma:0};
+const state={showLines:true,showNames:true,showMilkyWay:true,showGrid:false,starBrightness:2.5,magLimit:6,lat:35.6812,lon:139.7671,date:new Date(),useGyro:false,selectedConstellation:null,gyroAlpha:0,gyroBeta:0,gyroGamma:0};
 let scene,camera,renderer,starPoints,starGeometry,constellationLines={},constellationLabels={},constellationStarIndices={},milkyWayMesh,gridGroup,constellationData={},starMap={},rawStarData=null;
 let touchStartX,touchStartY,camTheta=Math.PI/2,camPhi=0;
 
@@ -130,7 +132,7 @@ async function loadData(){
 function lonToRA(lon){return lon<0?360+lon:lon;}
 function radecToXYZ(ra,dec,R){const r=ra*Math.PI/180,d=dec*Math.PI/180;return new THREE.Vector3(R*Math.cos(d)*Math.cos(r),R*Math.sin(d),-R*Math.cos(d)*Math.sin(r));}
 function bvToColor(bv){bv=Math.max(-0.4,Math.min(2.0,parseFloat(bv)||0));let r,g,b;if(bv<0){r=0.7-bv*0.5;g=0.8-bv*0.3;b=1.0;}else if(bv<0.4){r=0.8+bv*0.5;g=0.85+bv*0.2;b=1.0-bv*0.3;}else if(bv<0.8){r=1.0;g=1.0-(bv-0.4)*0.6;b=0.7-(bv-0.4)*0.8;}else{r=1.0;g=0.7-(bv-0.8)*0.4;b=Math.max(0.1,0.3-(bv-0.8)*0.3);}return new THREE.Color(Math.min(1,r),Math.min(1,g),Math.min(1,b));}
-function magToSize(mag){return Math.max(0.8,(7-mag)*state.starBrightness);}
+function magToSize(mag){if(mag>state.magLimit)return 0;return Math.max(0.8,(7-mag)*state.starBrightness);}
 
 function julianDate(d){const y=d.getUTCFullYear(),m=d.getUTCMonth()+1,dd=d.getUTCDate(),h=d.getUTCHours()+d.getUTCMinutes()/60+d.getUTCSeconds()/3600;let yy=y,mm=m;if(mm<=2){yy--;mm+=12;}const A=Math.floor(yy/100),B=2-A+Math.floor(A/4);return Math.floor(365.25*(yy+4716))+Math.floor(30.6001*(mm+1))+dd+h/24+B-1524.5;}
 function greenwichSiderealTime(jd){const T=(jd-2451545.0)/36525.0;let g=280.46061837+360.98564736629*(jd-2451545.0)+T*T*0.000387933-T*T*T/38710000;return((g%360)+360)%360;}
@@ -167,7 +169,7 @@ function createStars(data){
   starGeometry.setAttribute('color',new THREE.BufferAttribute(col,3));
   starGeometry.setAttribute('baseColor',new THREE.BufferAttribute(baseCol,3));
   starGeometry.setAttribute('size',new THREE.BufferAttribute(sz,1));
-  const vs=`attribute float size;varying vec3 vColor;void main(){vColor=color;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=size*(250.0/-mv.z);gl_Position=projectionMatrix*mv;}`;
+  const vs=`attribute float size;varying vec3 vColor;void main(){vColor=color;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=size*(250.0/-mv.z);if(size<=0.0){gl_Position=vec4(2.0,2.0,2.0,1.0);return;}gl_Position=projectionMatrix*mv;}`;
   const fs=`varying vec3 vColor;void main(){float d=length(gl_PointCoord-vec2(0.5));if(d>0.5)discard;float a=smoothstep(0.5,0.0,d);float g=exp(-d*3.5)*0.7;float t=a+g;gl_FragColor=vec4(vColor*t,t*0.85);}`;
   starPoints=new THREE.Points(starGeometry,new THREE.ShaderMaterial({vertexShader:vs,fragmentShader:fs,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
   scene.add(starPoints);
@@ -341,6 +343,7 @@ function setupUI(){
   });});
   document.querySelectorAll('.toggle').forEach(el=>{el.addEventListener('click',()=>{el.classList.toggle('on');state[el.dataset.setting]=el.classList.contains('on');applySettings();});});
   document.querySelector('[data-setting="starBrightness"]').addEventListener('input',e=>{state.starBrightness=parseFloat(e.target.value);updateStarSizes();});
+  document.getElementById('mag-limit').addEventListener('change',e=>{state.magLimit=parseInt(e.target.value);updateStarSizes();});
   const now=new Date();
   document.getElementById('inp-date').value=now.toISOString().split('T')[0];
   document.getElementById('inp-time').value=now.toTimeString().slice(0,5);
