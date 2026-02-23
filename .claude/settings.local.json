@@ -12,7 +12,11 @@
       "Bash(git checkout -b*)",
       "Bash(ls*)",
       "Bash(date*)",
-      "Bash(bash _scripts/*)"
+      "Bash(bash _scripts/*)",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "Bash(bash /Users/tsubasa/project/claude/ideas/_scripts/build-manifest.sh)",
+      "Bash(kill:*)"
     ]
   }
 }
