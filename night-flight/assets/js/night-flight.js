@@ -33,6 +33,9 @@ const FLIGHT_CONFIG = {
   segmentDuration: 15, // 各セグメントの秒数（speed=1.0のとき）
 };
 
+// デバイス判定
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 // ================================================================
 // 状態管理
 // ================================================================
@@ -102,7 +105,7 @@ async function initCesium() {
     navigationHelpButton: false,
     creditContainer: document.createElement('div'),
     baseLayer: false,
-    terrain: Cesium.Terrain.fromWorldTerrain(),
+    // テレインなし（夜景の黒背景では地形は不要、通信・描画コスト削減）
   });
 
   const scene = viewer.scene;
@@ -112,14 +115,23 @@ async function initCesium() {
   scene.sun.show = false;
   scene.moon.show = false;
   scene.skyAtmosphere.show = false;
+  scene.skyBox.show = false;
+  scene.globe.showGroundAtmosphere = false;
 
-  // フォグ（水平線付近の霞み）
+  // フォグ（遠方タイルを隠して通信・描画コストを削減）
   scene.fog.enabled = true;
-  scene.fog.density = 0.0003;
+  scene.fog.density = IS_MOBILE ? 0.001 : 0.0005;
+  scene.fog.minimumBrightness = 0.0;
 
   // パフォーマンス設定
-  viewer.resolutionScale = Math.min(window.devicePixelRatio, 2.0);
-  scene.globe.maximumScreenSpaceError = 2;
+  // スマホ: 解像度を下げてGPU負荷を大幅削減
+  viewer.resolutionScale = IS_MOBILE ? 0.7 : Math.min(window.devicePixelRatio, 1.5);
+  // 地表タイルのLOD（数値が大きいほど粗い＝軽い）
+  scene.globe.maximumScreenSpaceError = IS_MOBILE ? 16 : 4;
+
+  // リクエストレンダリングモード（MANUALモードで静止時に省電力）
+  scene.requestRenderMode = true;
+  scene.maximumRenderTimeChange = Infinity; // 飛行中はpreRenderで毎フレーム強制
 
   // カメラ初期位置（東京湾上空）
   viewer.camera.setView({
@@ -147,6 +159,10 @@ async function loadBuildings() {
     );
     viewer.scene.primitives.add(buildingsTileset);
 
+    // 3D TilesのLOD・メモリ制限
+    buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 24 : 8;
+    buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 128 : 512;
+
     // 夜景シェーダーを適用
     applyNightShader(buildingsTileset);
 
@@ -160,6 +176,8 @@ async function loadBuildings() {
       console.warn('OSM Buildingsにフォールバック');
       buildingsTileset = await Cesium.createOsmBuildingsAsync();
       viewer.scene.primitives.add(buildingsTileset);
+      buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 24 : 8;
+      buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 128 : 512;
       applyNightShader(buildingsTileset);
       updateLoadProgress(60, '夜景エフェクトを設定中...');
       return true;
@@ -232,16 +250,19 @@ function applyNightShader(tileset) {
 function setupPostProcess() {
   const scene = viewer.scene;
 
-  // ブルーム（光のにじみ）
+  // ブルーム（光のにじみ）— スマホでは軽量設定
   scene.postProcessStages.bloom.enabled = true;
   scene.postProcessStages.bloom.uniforms.glowOnly = false;
   scene.postProcessStages.bloom.uniforms.contrast = 119;
   scene.postProcessStages.bloom.uniforms.brightness = -0.2;
-  scene.postProcessStages.bloom.uniforms.delta = 1.0;
-  scene.postProcessStages.bloom.uniforms.sigma = 3.0;
-  scene.postProcessStages.bloom.uniforms.stepSize = 2.0;
+  scene.postProcessStages.bloom.uniforms.delta = IS_MOBILE ? 1.5 : 1.0;
+  scene.postProcessStages.bloom.uniforms.sigma = IS_MOBILE ? 2.0 : 3.0;
+  scene.postProcessStages.bloom.uniforms.stepSize = IS_MOBILE ? 4.0 : 2.0;
 
-  // ビネット（画面端の暗化）
+  // スマホではブルームのみ（ビネット・カラーコレクション省略でGPUパス削減）
+  if (IS_MOBILE) return;
+
+  // ビネット（画面端の暗化）— PCのみ
   const vignetteStage = new Cesium.PostProcessStage({
     fragmentShader: `
       uniform sampler2D colorTexture;
@@ -255,7 +276,7 @@ function setupPostProcess() {
     `,
   });
 
-  // カラーコレクション（ブルーシフト・コントラスト強調）
+  // カラーコレクション（ブルーシフト・コントラスト強調）— PCのみ
   const colorStage = new Cesium.PostProcessStage({
     fragmentShader: `
       uniform sampler2D colorTexture;
@@ -580,6 +601,8 @@ async function init() {
     // 毎フレームの飛行更新
     viewer.scene.preRender.addEventListener(() => {
       updateFlight(performance.now());
+      // AUTOモード中は毎フレーム再描画を要求
+      if (state.mode === 'auto') viewer.scene.requestRender();
     });
 
     updateLoadProgress(100, 'Ready');
