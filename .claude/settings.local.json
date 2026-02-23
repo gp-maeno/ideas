@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:cesium.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(python3 -m http.server*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git branch*)",
+      "Bash(git checkout -b*)",
+      "Bash(ls*)",
+      "Bash(date*)",
+      "Bash(bash _scripts/*)"
+    ]
+  }
+}
