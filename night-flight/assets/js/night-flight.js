@@ -196,49 +196,151 @@ function applyNightShader(tileset) {
   tileset.customShader = new Cesium.CustomShader({
     lightingModel: Cesium.LightingModel.UNLIT,
     fragmentShaderText: `
+      // 再現性のあるハッシュ関数
+      float hash11(float p) {
+        p = fract(p * 0.1031);
+        p *= p + 33.33;
+        p *= p + p;
+        return fract(p);
+      }
+      float hash21(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+      }
+      float hash31(vec3 p) {
+        p = fract(p * 0.1031);
+        p += dot(p, p.zyx + 31.32);
+        return fract((p.x + p.y) * p.z);
+      }
+
       void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-        // モデル座標でプロシージャルな窓パターンを生成
         vec3 pos = fsInput.attributes.positionMC;
+        vec3 norm = fsInput.attributes.normalMC;
 
-        // 壁面の基本色（暗いネイビー）
-        vec3 wallColor = vec3(0.03, 0.04, 0.06);
+        // ============================================================
+        // ビル単位のハッシュ（大きなセルでビルの個性を決定）
+        // ============================================================
+        vec3 buildingCell = floor(pos * 0.05);
+        float buildingHash = hash31(buildingCell);
 
-        // 窓グリッド: モデル座標ベース
-        float scaleXZ = 0.8;
-        float scaleY = 0.8;
+        // ビルタイプ: 0=オフィス(白・青白), 1=住居(暖色), 2=商業(色付き)
+        int buildingType = int(floor(buildingHash * 3.0));
+
+        // ビルの明るさ傾向（暗いビル〜明るいビル）
+        float buildingBrightness = 0.3 + 0.7 * hash11(buildingHash * 17.3);
+
+        // 消灯率（ビルごとに異なる。0.3=ほぼ点灯, 0.7=大半消灯）
+        float offRate = 0.25 + 0.45 * hash11(buildingHash * 23.7);
+
+        // ============================================================
+        // 窓グリッド（ビルタイプでスケールを変える）
+        // ============================================================
+        // オフィス: 細かいグリッド、住居: やや大きめ、商業: 中間
+        float scaleXZ = buildingType == 0 ? 1.2 : (buildingType == 1 ? 0.6 : 0.9);
+        float scaleY  = buildingType == 0 ? 0.9 : (buildingType == 1 ? 0.5 : 0.7);
+
         float gridX = fract(pos.x * scaleXZ);
         float gridY = fract(pos.y * scaleY);
         float gridZ = fract(pos.z * scaleXZ);
 
-        // 窓の領域判定（グリッド中央部分が窓）
-        float winX = step(0.2, gridX) * step(gridX, 0.7);
-        float winY = step(0.3, gridY) * step(gridY, 0.8);
-        float winZ = step(0.2, gridZ) * step(gridZ, 0.7);
+        // 窓の領域判定（グリッドの中央部分が窓ガラス）
+        float winMargin = buildingType == 0 ? 0.15 : 0.2;
+        float winX = smoothstep(winMargin, winMargin + 0.05, gridX)
+                   * smoothstep(winMargin, winMargin + 0.05, 1.0 - gridX);
+        float winY = smoothstep(0.2, 0.25, gridY) * smoothstep(0.1, 0.15, 1.0 - gridY);
+        float winZ = smoothstep(winMargin, winMargin + 0.05, gridZ)
+                   * smoothstep(winMargin, winMargin + 0.05, 1.0 - gridZ);
 
-        // XZ平面・YZ平面の窓を合成
+        // XZ面・YZ面の窓を合成
         float isWindow = max(winX * winY, winZ * winY);
 
-        // 座標ベースのハッシュでランダムON/OFF
-        vec3 cell = floor(pos * scaleXZ);
-        float hash = fract(sin(dot(cell, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
-        float windowOn = step(0.4, hash);
+        // ============================================================
+        // 窓ごとのON/OFF判定
+        // ============================================================
+        vec2 cellXY = floor(vec2(pos.x * scaleXZ, pos.y * scaleY));
+        vec2 cellZY = floor(vec2(pos.z * scaleXZ, pos.y * scaleY));
+        float cellHash = max(hash21(cellXY + buildingCell.xy * 100.0),
+                             hash21(cellZY + buildingCell.zy * 100.0));
+        float windowOn = step(offRate, cellHash);
 
-        // 窓の色（暖色: 黄〜オレンジ）
-        vec3 warmLight = mix(
-          vec3(1.0, 0.85, 0.5),
-          vec3(1.0, 0.6, 0.3),
-          fract(hash * 7.31)
+        // フロアごとの消灯パターン（上階ほど消灯しやすい）
+        float floorIndex = floor(pos.y * scaleY);
+        float floorDim = smoothstep(8.0, 20.0, floorIndex) * 0.3;
+        windowOn *= step(floorDim, cellHash);
+
+        // ============================================================
+        // 窓の光の色（ビルタイプごとに異なるパレット）
+        // ============================================================
+        float colorSeed = hash21(cellXY * 7.31 + cellZY * 3.17);
+        vec3 windowColor;
+
+        if (buildingType == 0) {
+          // オフィスビル: 蛍光灯の白〜青白
+          windowColor = mix(
+            vec3(0.9, 0.92, 1.0),   // クールホワイト
+            vec3(0.75, 0.85, 1.0),  // 青白い蛍光灯
+            colorSeed
+          );
+          // 一部暖色の部屋（会議室等）
+          if (colorSeed > 0.8) {
+            windowColor = vec3(1.0, 0.9, 0.7);
+          }
+        } else if (buildingType == 1) {
+          // 住居: 暖色系（電球色〜オレンジ）
+          windowColor = mix(
+            vec3(1.0, 0.85, 0.55),  // 電球色
+            vec3(1.0, 0.7, 0.4),    // 暖かいオレンジ
+            colorSeed
+          );
+          // テレビの青白い光
+          if (colorSeed > 0.85) {
+            windowColor = vec3(0.6, 0.7, 1.0);
+          }
+        } else {
+          // 商業ビル: 多彩な色
+          float hueSelect = fract(colorSeed * 5.0);
+          if (hueSelect < 0.3) {
+            windowColor = vec3(1.0, 0.95, 0.8);  // 白色LED
+          } else if (hueSelect < 0.5) {
+            windowColor = vec3(0.4, 0.8, 1.0);   // 青系ネオン
+          } else if (hueSelect < 0.7) {
+            windowColor = vec3(1.0, 0.5, 0.6);   // ピンク系
+          } else {
+            windowColor = vec3(0.5, 1.0, 0.7);   // 緑系
+          }
+        }
+
+        // 明るさのばらつき
+        float intensity = (0.5 + 0.5 * hash11(colorSeed * 41.0)) * buildingBrightness;
+
+        // ============================================================
+        // 壁面の色（ビルの輪郭が見える程度の明るさ）
+        // ============================================================
+        // 法線の上向き成分で屋上と壁面を区別
+        float isRoof = smoothstep(0.7, 0.9, abs(norm.y));
+        // 壁面: 微かに見える暗い色（ビルの輪郭を表現）
+        vec3 wallColor = mix(
+          vec3(0.04, 0.045, 0.065),  // 壁面ベース
+          vec3(0.025, 0.03, 0.045),  // 屋上はさらに暗く
+          isRoof
         );
+        // エッジ部分をわずかに明るく（シルエット強調）
+        float edgeFresnel = pow(1.0 - abs(dot(normalize(norm), vec3(0.0, 0.0, 1.0))), 3.0);
+        wallColor += vec3(0.02, 0.025, 0.04) * edgeFresnel;
 
-        // 明るさバリエーション
-        float brightness = 0.4 + 0.6 * fract(hash * 3.17);
+        // 窓からの光漏れ（窓周辺をほんのり照らす）
+        float windowGlow = isWindow * windowOn * 0.015;
+        wallColor += windowColor * windowGlow;
 
-        // 最終色合成
+        // ============================================================
+        // 最終合成
+        // ============================================================
         float windowMask = isWindow * windowOn;
-        vec3 finalColor = mix(wallColor, warmLight * brightness, windowMask);
+        vec3 finalColor = mix(wallColor, windowColor * intensity, windowMask);
 
         material.diffuse = finalColor;
-        material.emissive = finalColor * 0.8;
+        material.emissive = finalColor;
       }
     `,
   });
