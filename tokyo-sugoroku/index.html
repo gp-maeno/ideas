@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>東京観光スゴロク</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/sugoroku.css">
+</head>
+<body>
+
+<div class="phone-frame" id="app">
+  <!-- ヘッダー -->
+  <header class="header">
+    <a href="../" class="gallery-link">&larr; Gallery</a>
+    <span class="header-title">東京観光スゴロク</span>
+    <div class="header-stats">
+      <span class="points-display">
+        <span>💰</span>
+        <span class="points-value" id="pointsDisplay">50</span>
+        <span>pt</span>
+      </span>
+      <span class="lap-display" id="lapDisplay">1周目</span>
+    </div>
+  </header>
+
+  <!-- リセットボタン -->
+  <button class="reset-button" id="resetButton" title="リセット">↺</button>
+
+  <!-- マップエリア -->
+  <div class="map-area" id="mapArea">
+    <div class="map-svg-container">
+      <svg class="map-svg" id="mapSvg" viewBox="80 120 640 780" xmlns="http://www.w3.org/2000/svg">
+        <!-- ルート線はJSで描画 -->
+        <g id="routeLines"></g>
+        <!-- スポットノードはJSで描画 -->
+        <g id="spotNodes"></g>
+        <!-- プレイヤーコマはJSで描画 -->
+        <g id="playerLayer"></g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- フッター（サイコロ） -->
+  <footer class="footer">
+    <div class="no-points-message" id="noPointsMessage">
+      ポイント不足！明日また来てね 🌟
+    </div>
+    <button class="dice-button" id="diceButton">
+      <span>🎲</span>
+      <span>サイコロを振る</span>
+      <span class="dice-cost">-5pt</span>
+    </button>
+  </footer>
+</div>
+
+<!-- サイコロ結果 -->
+<div class="dice-result" id="diceResult"></div>
+
+<!-- オーバーレイ -->
+<div class="overlay" id="overlay"></div>
+
+<!-- ボトムシート -->
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content" id="sheetContent">
+    <!-- 動的にコンテンツ挿入 -->
+  </div>
+</div>
+
+<!-- デイリーボーナスモーダル -->
+<div class="daily-bonus-modal" id="dailyBonusModal">
+  <div class="modal-bg"></div>
+  <div class="daily-bonus-content">
+    <div class="daily-bonus-emoji">🎁</div>
+    <div class="daily-bonus-title">デイリーボーナス！</div>
+    <div class="daily-bonus-amount" id="dailyBonusAmount">+50pt</div>
+    <button class="daily-bonus-close" id="dailyBonusClose">受け取る</button>
+  </div>
+</div>
+
+<!-- 周回クリア演出 -->
+<div class="lap-clear" id="lapClear">
+  <div class="lap-clear-content">
+    <div class="lap-clear-emoji">🎉</div>
+    <div class="lap-clear-text" id="lapClearText">1周クリア！</div>
+    <div class="lap-clear-bonus">+30pt ボーナス</div>
+  </div>
+</div>
+
+<!-- 1回休みオーバーレイ -->
+<div class="skip-turn-overlay" id="skipTurnOverlay">
+  <div class="skip-turn-text">
+    🐼 1回休み...<br>
+    <span style="font-size: 0.875rem; font-weight: 400;">パンダと一緒にひと休み</span>
+  </div>
+</div>
+
+<script type="module" src="./assets/js/main.js"></script>
+</body>
+</html>

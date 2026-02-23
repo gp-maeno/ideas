@@ -1,0 +1,728 @@
+/* 東京観光スゴロク - スマホ特化スタイル */
+
+/* === CSS変数 === */
+:root {
+  --bg-base: #0f0f1a;
+  --bg-surface: #1a1a2e;
+  --bg-card: #16213e;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-pink: #f472b6;
+  --accent-gold: #fbbf24;
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-orange: #f97316;
+  --accent-purple: #a855f7;
+  --border-color: #2a2a4a;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  --radius: 12px;
+  --radius-lg: 20px;
+  --font-sans: 'Noto Sans JP', sans-serif;
+  --phone-max-width: 430px;
+  --phone-max-height: 932px;
+}
+
+/* === リセット === */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #000;
+  color: var(--text-primary);
+  overflow: hidden;
+  /* PC表示: 中央配置 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100dvh;
+}
+
+/* === スマホフレーム === */
+.phone-frame {
+  width: 100%;
+  max-width: var(--phone-max-width);
+  height: 100dvh;
+  max-height: var(--phone-max-height);
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* PC表示時の角丸フレーム */
+@media (min-width: 431px) {
+  .phone-frame {
+    border-radius: 40px;
+    border: 3px solid #333;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* === ヘッダー === */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.header-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.header-stats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.points-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.points-value {
+  transition: transform 0.3s ease;
+}
+
+.points-value.bump {
+  animation: pointsBump 0.4s ease;
+}
+
+.lap-display {
+  color: var(--text-secondary);
+}
+
+/* ギャラリーリンク */
+.gallery-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+
+/* === マップエリア === */
+.map-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.map-svg-container {
+  width: 180%;
+  height: 150%;
+  min-width: 650px;
+  min-height: 750px;
+  position: relative;
+}
+
+.map-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* === SVGマップ内のスタイル === */
+
+/* ルート線 */
+.route-line {
+  fill: none;
+  stroke: var(--border-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 8 4;
+}
+
+/* スポットノード */
+.spot-node {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.spot-circle {
+  stroke-width: 3;
+  transition: r 0.3s ease, stroke-width 0.3s ease;
+}
+
+.spot-circle-bg {
+  fill: var(--bg-surface);
+}
+
+.spot-emoji {
+  font-size: 20px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.spot-label {
+  font-size: 11px;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+.spot-event-badge {
+  font-size: 9px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--font-sans);
+}
+
+/* 現在地マーク */
+.spot-node.is-current .spot-circle {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+/* 訪問済みマーク */
+.spot-node.is-visited .spot-circle {
+  opacity: 0.7;
+}
+
+/* プレイヤーコマ */
+.player-piece {
+  transition: cx 0.6s ease, cy 0.6s ease;
+}
+
+.player-piece-outer {
+  fill: var(--accent-pink);
+  filter: drop-shadow(0 2px 6px rgba(244, 114, 182, 0.5));
+}
+
+.player-piece-inner {
+  fill: white;
+}
+
+.player-piece-emoji {
+  font-size: 16px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* === フッター（サイコロエリア） === */
+.footer {
+  padding: 16px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.dice-button {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--accent-pink), #ec4899);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.dice-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.dice-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--text-muted);
+}
+
+.dice-cost {
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+
+/* サイコロ結果表示 */
+.dice-result {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 120px;
+  height: 120px;
+  background: var(--bg-card);
+  border: 3px solid var(--accent-pink);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 900;
+  color: var(--accent-pink);
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+.dice-result.show {
+  animation: diceShow 1.2s ease forwards;
+}
+
+/* === ボトムシート（イベントカード） === */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: var(--phone-max-width);
+  max-height: 70vh;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  z-index: 51;
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bottom-sheet.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--text-muted);
+  border-radius: 2px;
+  margin: 12px auto;
+}
+
+.sheet-content {
+  padding: 0 20px 24px;
+}
+
+/* カードヘッダー（グラデーション背景） */
+.card-header {
+  padding: 24px 20px;
+  text-align: center;
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin: 0 -20px 16px;
+}
+
+.card-emoji {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.card-area {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.card-trivia {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--accent-gold);
+  background: rgba(251, 191, 36, 0.1);
+  padding: 12px;
+  border-radius: var(--radius);
+  border-left: 3px solid var(--accent-gold);
+  margin-bottom: 16px;
+}
+
+.card-trivia::before {
+  content: '豆知識：';
+  font-weight: 700;
+}
+
+/* グルメカード */
+.food-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-orange);
+  margin-bottom: 8px;
+}
+
+.food-description {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* クイズカード */
+.quiz-question {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.quiz-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quiz-choice {
+  padding: 14px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.quiz-choice:active {
+  transform: scale(0.98);
+}
+
+.quiz-choice.correct {
+  border-color: var(--accent-green);
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--accent-green);
+}
+
+.quiz-choice.wrong {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.quiz-choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.quiz-explanation {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  margin-bottom: 16px;
+  display: none;
+}
+
+.quiz-explanation.show {
+  display: block;
+}
+
+.quiz-result {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  margin-bottom: 12px;
+  display: none;
+}
+
+.quiz-result.show {
+  display: block;
+}
+
+/* ポイント獲得カード */
+.points-gain {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  margin: 16px 0;
+}
+
+/* 移動系イベントカード */
+.event-message {
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+
+/* シート内のアクションボタン */
+.sheet-action {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent-pink);
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.sheet-action:active {
+  transform: scale(0.97);
+}
+
+/* === デイリーボーナスモーダル === */
+.daily-bonus-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.daily-bonus-modal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.daily-bonus-modal .modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.daily-bonus-content {
+  position: relative;
+  background: var(--bg-surface);
+  border: 2px solid var(--accent-gold);
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(251, 191, 36, 0.2);
+  animation: modalPop 0.5s ease;
+}
+
+.daily-bonus-emoji {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.daily-bonus-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 8px;
+}
+
+.daily-bonus-amount {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  margin-bottom: 16px;
+}
+
+.daily-bonus-close {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent-gold);
+  color: var(--bg-base);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+/* === ポイント不足メッセージ === */
+.no-points-message {
+  text-align: center;
+  padding: 8px;
+  color: var(--accent-gold);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: none;
+}
+
+.no-points-message.show {
+  display: block;
+}
+
+/* === 周回クリア演出 === */
+.lap-clear {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.lap-clear.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lap-clear-content {
+  text-align: center;
+  animation: modalPop 0.6s ease;
+}
+
+.lap-clear-emoji {
+  font-size: 4rem;
+  margin-bottom: 8px;
+}
+
+.lap-clear-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+}
+
+.lap-clear-bonus {
+  font-size: 1.125rem;
+  color: var(--accent-pink);
+  margin-top: 8px;
+}
+
+/* === リセットボタン === */
+.reset-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11;
+}
+
+/* === アニメーション === */
+@keyframes diceShow {
+  0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); }
+  40% { transform: translate(-50%, -50%) scale(1.2) rotate(0deg); }
+  60% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  80% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.8) rotate(0deg); opacity: 0; }
+}
+
+@keyframes pointsBump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  z-index: 160;
+  pointer-events: none;
+  animation: confetti 2s ease-out forwards;
+}
+
+/* === 1回休みオーバーレイ === */
+.skip-turn-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.skip-turn-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.skip-turn-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--accent-purple);
+  text-align: center;
+  animation: modalPop 0.5s ease;
+}
