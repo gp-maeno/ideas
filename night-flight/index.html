@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Tokyo Night Flight</title>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.137/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/night-flight.css">
+</head>
+<body>
+<div id="loading">
+  <div class="loading-content">
+    <h1>TOKYO<br>NIGHT FLIGHT</h1>
+    <div class="loading-sub">Preparing for takeoff...</div>
+    <div class="loading-bar"><div class="loading-fill" id="load-progress"></div></div>
+    <div class="loading-message" id="load-message">Initializing...</div>
+  </div>
+</div>
+<div id="cesiumContainer"></div>
+<div id="flight-ui">
+  <div class="top-bar">
+    <a href="../" class="back-link"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Gallery</a>
+    <div id="location-label"></div>
+  </div>
+  <div class="bottom-controls">
+    <button id="mode-toggle" class="control-btn">AUTO</button>
+    <div class="speed-control">
+      <button id="speed-down" class="control-btn small">&minus;</button>
+      <span id="speed-label" class="speed-label">1.0x</span>
+      <button id="speed-up" class="control-btn small">+</button>
+    </div>
+    <button id="mute-toggle" class="control-btn">BGM</button>
+  </div>
+</div>
+<script src="./assets/js/night-flight.js"></script>
+</body>
+</html>
