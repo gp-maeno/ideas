@@ -124,10 +124,10 @@ async function initCesium() {
   scene.fog.minimumBrightness = 0.0;
 
   // パフォーマンス設定
-  // スマホ: 解像度を下げてGPU負荷を大幅削減
-  viewer.resolutionScale = IS_MOBILE ? 0.7 : Math.min(window.devicePixelRatio, 1.5);
-  // 地表タイルのLOD（数値が大きいほど粗い＝軽い）
-  scene.globe.maximumScreenSpaceError = IS_MOBILE ? 16 : 4;
+  viewer.resolutionScale = IS_MOBILE ? 0.65 : Math.min(window.devicePixelRatio, 1.5);
+  scene.globe.maximumScreenSpaceError = IS_MOBILE ? 20 : 4;
+  // 地表描画を最小化（夜景では黒背景で見えない）
+  scene.globe.tileCacheSize = 100;
 
   // リクエストレンダリングモード（MANUALモードで静止時に省電力）
   scene.requestRenderMode = true;
@@ -159,9 +159,10 @@ async function loadBuildings() {
     );
     viewer.scene.primitives.add(buildingsTileset);
 
-    // 3D TilesのLOD・メモリ制限
-    buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 24 : 8;
-    buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 128 : 512;
+    // 3D TilesのLOD・メモリ制限（値が大きいほど粗く軽い）
+    buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 32 : 12;
+    buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 64 : 256;
+    buildingsTileset.preloadWhenHidden = false;
 
     // 夜景シェーダーを適用
     applyNightShader(buildingsTileset);
@@ -176,8 +177,9 @@ async function loadBuildings() {
       console.warn('OSM Buildingsにフォールバック');
       buildingsTileset = await Cesium.createOsmBuildingsAsync();
       viewer.scene.primitives.add(buildingsTileset);
-      buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 24 : 8;
-      buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 128 : 512;
+      buildingsTileset.maximumScreenSpaceError = IS_MOBILE ? 32 : 12;
+      buildingsTileset.maximumMemoryUsage = IS_MOBILE ? 64 : 256;
+      buildingsTileset.preloadWhenHidden = false;
       applyNightShader(buildingsTileset);
       updateLoadProgress(60, '夜景エフェクトを設定中...');
       return true;
@@ -216,41 +218,41 @@ function applyNightShader(tileset) {
 
       void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
         vec3 pos = fsInput.attributes.positionMC;
-        vec3 norm = fsInput.attributes.normalMC;
+        vec3 norm = fsInput.attributes.normalEC;
 
         // ============================================================
         // ビル単位のハッシュ（大きなセルでビルの個性を決定）
         // ============================================================
-        vec3 buildingCell = floor(pos * 0.05);
+        vec3 buildingCell = floor(pos * 0.02);
         float buildingHash = hash31(buildingCell);
 
         // ビルタイプ: 0=オフィス(白・青白), 1=住居(暖色), 2=商業(色付き)
         int buildingType = int(floor(buildingHash * 3.0));
 
         // ビルの明るさ傾向（暗いビル〜明るいビル）
-        float buildingBrightness = 0.3 + 0.7 * hash11(buildingHash * 17.3);
+        float buildingBrightness = 0.4 + 0.6 * hash11(buildingHash * 17.3);
 
-        // 消灯率（ビルごとに異なる。0.3=ほぼ点灯, 0.7=大半消灯）
-        float offRate = 0.25 + 0.45 * hash11(buildingHash * 23.7);
+        // 消灯率（高い = 暗い窓が多い。0.55〜0.85）
+        float offRate = 0.55 + 0.30 * hash11(buildingHash * 23.7);
 
         // ============================================================
-        // 窓グリッド（ビルタイプでスケールを変える）
+        // 窓グリッド（スケール値を大幅に下げて窓を大きく・疎に）
         // ============================================================
-        // オフィス: 細かいグリッド、住居: やや大きめ、商業: 中間
-        float scaleXZ = buildingType == 0 ? 1.2 : (buildingType == 1 ? 0.6 : 0.9);
-        float scaleY  = buildingType == 0 ? 0.9 : (buildingType == 1 ? 0.5 : 0.7);
+        // positionMCはメートル単位。0.3 = 約3mごとに1窓
+        float scaleXZ = buildingType == 0 ? 0.35 : (buildingType == 1 ? 0.22 : 0.28);
+        float scaleY  = buildingType == 0 ? 0.30 : (buildingType == 1 ? 0.20 : 0.25);
 
         float gridX = fract(pos.x * scaleXZ);
         float gridY = fract(pos.y * scaleY);
         float gridZ = fract(pos.z * scaleXZ);
 
-        // 窓の領域判定（グリッドの中央部分が窓ガラス）
-        float winMargin = buildingType == 0 ? 0.15 : 0.2;
-        float winX = smoothstep(winMargin, winMargin + 0.05, gridX)
-                   * smoothstep(winMargin, winMargin + 0.05, 1.0 - gridX);
-        float winY = smoothstep(0.2, 0.25, gridY) * smoothstep(0.1, 0.15, 1.0 - gridY);
-        float winZ = smoothstep(winMargin, winMargin + 0.05, gridZ)
-                   * smoothstep(winMargin, winMargin + 0.05, 1.0 - gridZ);
+        // 窓の領域判定（マージンを広げて窓を小さく、壁を多く）
+        float winMargin = buildingType == 0 ? 0.25 : 0.30;
+        float winX = smoothstep(winMargin, winMargin + 0.04, gridX)
+                   * smoothstep(winMargin, winMargin + 0.04, 1.0 - gridX);
+        float winY = smoothstep(0.30, 0.34, gridY) * smoothstep(0.20, 0.24, 1.0 - gridY);
+        float winZ = smoothstep(winMargin, winMargin + 0.04, gridZ)
+                   * smoothstep(winMargin, winMargin + 0.04, 1.0 - gridZ);
 
         // XZ面・YZ面の窓を合成
         float isWindow = max(winX * winY, winZ * winY);
@@ -260,14 +262,10 @@ function applyNightShader(tileset) {
         // ============================================================
         vec2 cellXY = floor(vec2(pos.x * scaleXZ, pos.y * scaleY));
         vec2 cellZY = floor(vec2(pos.z * scaleXZ, pos.y * scaleY));
-        float cellHash = max(hash21(cellXY + buildingCell.xy * 100.0),
-                             hash21(cellZY + buildingCell.zy * 100.0));
+        float cellHash = max(hash21(cellXY + buildingCell.xy * 77.0),
+                             hash21(cellZY + buildingCell.zy * 77.0));
+        // 消灯率が高いので、大半の窓はOFF
         float windowOn = step(offRate, cellHash);
-
-        // フロアごとの消灯パターン（上階ほど消灯しやすい）
-        float floorIndex = floor(pos.y * scaleY);
-        float floorDim = smoothstep(8.0, 20.0, floorIndex) * 0.3;
-        windowOn *= step(floorDim, cellHash);
 
         // ============================================================
         // 窓の光の色（ビルタイプごとに異なるパレット）
@@ -278,60 +276,38 @@ function applyNightShader(tileset) {
         if (buildingType == 0) {
           // オフィスビル: 蛍光灯の白〜青白
           windowColor = mix(
-            vec3(0.9, 0.92, 1.0),   // クールホワイト
-            vec3(0.75, 0.85, 1.0),  // 青白い蛍光灯
+            vec3(0.95, 0.95, 1.0),
+            vec3(0.8, 0.88, 1.0),
             colorSeed
           );
-          // 一部暖色の部屋（会議室等）
-          if (colorSeed > 0.8) {
-            windowColor = vec3(1.0, 0.9, 0.7);
-          }
+          if (colorSeed > 0.75) windowColor = vec3(1.0, 0.92, 0.75);
         } else if (buildingType == 1) {
           // 住居: 暖色系（電球色〜オレンジ）
           windowColor = mix(
-            vec3(1.0, 0.85, 0.55),  // 電球色
-            vec3(1.0, 0.7, 0.4),    // 暖かいオレンジ
+            vec3(1.0, 0.82, 0.5),
+            vec3(1.0, 0.65, 0.35),
             colorSeed
           );
-          // テレビの青白い光
-          if (colorSeed > 0.85) {
-            windowColor = vec3(0.6, 0.7, 1.0);
-          }
+          if (colorSeed > 0.82) windowColor = vec3(0.55, 0.65, 1.0);
         } else {
-          // 商業ビル: 多彩な色
-          float hueSelect = fract(colorSeed * 5.0);
-          if (hueSelect < 0.3) {
-            windowColor = vec3(1.0, 0.95, 0.8);  // 白色LED
-          } else if (hueSelect < 0.5) {
-            windowColor = vec3(0.4, 0.8, 1.0);   // 青系ネオン
-          } else if (hueSelect < 0.7) {
-            windowColor = vec3(1.0, 0.5, 0.6);   // ピンク系
-          } else {
-            windowColor = vec3(0.5, 1.0, 0.7);   // 緑系
-          }
+          // 商業ビル: 白色メインに時々カラー
+          windowColor = vec3(1.0, 0.97, 0.9);
+          if (colorSeed > 0.7) windowColor = vec3(0.4, 0.75, 1.0);
+          if (colorSeed > 0.85) windowColor = vec3(1.0, 0.5, 0.55);
+          if (colorSeed > 0.93) windowColor = vec3(0.5, 1.0, 0.7);
         }
 
         // 明るさのばらつき
-        float intensity = (0.5 + 0.5 * hash11(colorSeed * 41.0)) * buildingBrightness;
+        float intensity = (0.6 + 0.4 * hash11(colorSeed * 41.0)) * buildingBrightness;
 
         // ============================================================
-        // 壁面の色（ビルの輪郭が見える程度の明るさ）
+        // 壁面の色（ほぼ黒、シルエットだけ見える）
         // ============================================================
-        // 法線の上向き成分で屋上と壁面を区別
-        float isRoof = smoothstep(0.7, 0.9, abs(norm.y));
-        // 壁面: 微かに見える暗い色（ビルの輪郭を表現）
-        vec3 wallColor = mix(
-          vec3(0.04, 0.045, 0.065),  // 壁面ベース
-          vec3(0.025, 0.03, 0.045),  // 屋上はさらに暗く
-          isRoof
-        );
+        vec3 wallColor = vec3(0.018, 0.020, 0.030);
+
         // エッジ部分をわずかに明るく（シルエット強調）
-        float edgeFresnel = pow(1.0 - abs(dot(normalize(norm), vec3(0.0, 0.0, 1.0))), 3.0);
-        wallColor += vec3(0.02, 0.025, 0.04) * edgeFresnel;
-
-        // 窓からの光漏れ（窓周辺をほんのり照らす）
-        float windowGlow = isWindow * windowOn * 0.015;
-        wallColor += windowColor * windowGlow;
+        float edge = 1.0 - abs(dot(normalize(norm), vec3(0.0, 0.0, 1.0)));
+        wallColor += vec3(0.012, 0.015, 0.025) * edge * edge;
 
         // ============================================================
         // 最終合成
@@ -352,17 +328,17 @@ function applyNightShader(tileset) {
 function setupPostProcess() {
   const scene = viewer.scene;
 
-  // ブルーム（光のにじみ）— スマホでは軽量設定
+  // スマホではポストプロセス全無効（最大のGPU負荷削減）
+  if (IS_MOBILE) return;
+
+  // ブルーム（光のにじみ）— PCのみ
   scene.postProcessStages.bloom.enabled = true;
   scene.postProcessStages.bloom.uniforms.glowOnly = false;
   scene.postProcessStages.bloom.uniforms.contrast = 119;
   scene.postProcessStages.bloom.uniforms.brightness = -0.2;
-  scene.postProcessStages.bloom.uniforms.delta = IS_MOBILE ? 1.5 : 1.0;
-  scene.postProcessStages.bloom.uniforms.sigma = IS_MOBILE ? 2.0 : 3.0;
-  scene.postProcessStages.bloom.uniforms.stepSize = IS_MOBILE ? 4.0 : 2.0;
-
-  // スマホではブルームのみ（ビネット・カラーコレクション省略でGPUパス削減）
-  if (IS_MOBILE) return;
+  scene.postProcessStages.bloom.uniforms.delta = 1.0;
+  scene.postProcessStages.bloom.uniforms.sigma = 3.0;
+  scene.postProcessStages.bloom.uniforms.stepSize = 2.0;
 
   // ビネット（画面端の暗化）— PCのみ
   const vignetteStage = new Cesium.PostProcessStage({
