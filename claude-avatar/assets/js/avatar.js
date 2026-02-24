@@ -1,27 +1,29 @@
 /**
  * Claude Avatar Generator
- * ピクセルマップベースのキャラクター描画 + パーツカスタマイズ
+ * 2xスケールのピクセルアート + パーツカスタマイズ
+ *
+ * 座標系:
+ *   ボディ座標 (x, y) → SVG座標 (x + OFFSET_X, y + OFFSET_Y)
+ *   ボディ本体: cols 6-31 (26幅), rows 0-13 (14高)
+ *   対称軸: x = 18.5（左右対称の基準）
  */
 
 /* ===========================
    定数・設定
    =========================== */
 
-// デフォルトカラー
 const DEFAULT_COLORS = {
   body: '#c07850',
   eye: '#1a1a1a',
   background: '#1a1a2e'
 };
 
-// 背景プリセットカラー
 const BG_PRESETS = [
   '#1a1a2e', '#16213e', '#0f3460', '#533483',
   '#2d4a3e', '#1a3a1a', '#3a1a1a', '#1a2a3a',
   '#2e1a2e', '#3d3d3d', '#f0e6d3', '#ffffff'
 ];
 
-// 体色プリセットカラー
 const BODY_PRESETS = [
   '#c07850', '#d4956a', '#a0522d', '#e8b88a',
   '#8b6f47', '#f4c794', '#cd853f', '#deb887',
@@ -29,112 +31,175 @@ const BODY_PRESETS = [
   '#ffeaa7', '#dda0dd', '#ff8c42', '#98d8c8'
 ];
 
-// 目色プリセットカラー
 const EYE_PRESETS = [
   '#1a1a1a', '#ffffff', '#ff4444', '#4488ff',
   '#44dd44', '#ffaa00', '#ff44ff', '#44ffff'
 ];
 
 /* ===========================
-   ベースボディ定義
+   ベースボディ（2xスケール・矩形定義）
    =========================== */
 
 /**
- * キャラクターの体のみ（目は表情システムで管理）
- * 0 = 透明, 1 = 体色
+ * 体を構成する矩形群
+ * 対称軸 x=18.5 を基準に左右対称
+ * 元の1xスケールの各ピクセルを2×2に拡大
  */
-const BASE_BODY = [
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 0: 体上端
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 1
-  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0], // row 2: 手
-  [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0], // row 3: 手
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 4
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 5
-  [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 6: 体下端
-  [0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0], // row 7: 足上
-  [0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0], // row 8: 足下
+const BODY_RECTS = [
+  { x: 6, y: 0, w: 26, h: 14 },   // 体本体
+  { x: 4, y: 4, w: 2, h: 4 },     // 左手
+  { x: 32, y: 4, w: 2, h: 4 },    // 右手
+  { x: 8, y: 14, w: 2, h: 4 },    // 左足外
+  { x: 12, y: 14, w: 2, h: 4 },   // 左足内
+  { x: 24, y: 14, w: 2, h: 4 },   // 右足内
+  { x: 28, y: 14, w: 2, h: 4 },   // 右足外
 ];
 
-const MAP_COLS = BASE_BODY[0].length; // 19
-const MAP_ROWS = BASE_BODY.length;    // 9
+// 描画オフセット（ボディ座標 → SVG座標）
+const OFFSET_X = 5;
+const OFFSET_Y = 9;
 
-// パーツ描画スペース確保のための余白
-const PAD_TOP = 4;
-const PAD_BOTTOM = 1;
-const PAD_LEFT = 3;
-const PAD_RIGHT = 4;
-const VIEW_W = MAP_COLS + PAD_LEFT + PAD_RIGHT; // 26
-const VIEW_H = MAP_ROWS + PAD_TOP + PAD_BOTTOM; // 14
+// SVG viewBoxサイズ
+const VIEW_W = 46;
+const VIEW_H = 28;
 
 /* ===========================
-   表情（目の形状バリエーション）
+   表情（目の形状バリエーション）10種
    =========================== */
 
 const EXPRESSIONS = {
   default: {
     label: 'デフォルト',
     pixels: [
-      { x: 5, y: 2 }, { x: 5, y: 3 },
-      { x: 13, y: 2 }, { x: 13, y: 3 },
+      { x: 10, y: 4, w: 2, h: 4 },
+      { x: 26, y: 4, w: 2, h: 4 },
+    ]
+  },
+  joy: {
+    label: '喜び',
+    pixels: [
+      // 左目 "<"
+      { x: 10, y: 3 }, { x: 11, y: 4 }, { x: 12, y: 5 },
+      { x: 11, y: 6 }, { x: 10, y: 7 },
+      // 右目 ">"
+      { x: 27, y: 3 }, { x: 26, y: 4 }, { x: 25, y: 5 },
+      { x: 26, y: 6 }, { x: 27, y: 7 },
     ]
   },
   smile: {
     label: 'にっこり',
     pixels: [
-      // 左目 ^
-      { x: 4, y: 2 }, { x: 6, y: 2 },
-      { x: 5, y: 3 },
-      // 右目 ^
-      { x: 12, y: 2 }, { x: 14, y: 2 },
-      { x: 13, y: 3 },
+      // 左目 "^"
+      { x: 10, y: 3 },
+      { x: 9, y: 4 }, { x: 11, y: 4 },
+      { x: 8, y: 5 }, { x: 12, y: 5 },
+      // 右目 "^"
+      { x: 27, y: 3 },
+      { x: 26, y: 4 }, { x: 28, y: 4 },
+      { x: 25, y: 5 }, { x: 29, y: 5 },
     ]
   },
   surprise: {
     label: 'びっくり',
     pixels: [
-      // 左目 O
-      { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 },
-      { x: 4, y: 2 }, { x: 6, y: 2 },
-      { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 6, y: 3 },
-      // 右目 O
-      { x: 12, y: 1 }, { x: 13, y: 1 }, { x: 14, y: 1 },
-      { x: 12, y: 2 }, { x: 14, y: 2 },
-      { x: 12, y: 3 }, { x: 13, y: 3 }, { x: 14, y: 3 },
+      // 左目 "O"
+      { x: 10, y: 3, w: 2, h: 1 },
+      { x: 9, y: 4 }, { x: 12, y: 4 },
+      { x: 9, y: 5 }, { x: 12, y: 5 },
+      { x: 9, y: 6 }, { x: 12, y: 6 },
+      { x: 10, y: 7, w: 2, h: 1 },
+      // 右目 "O"
+      { x: 26, y: 3, w: 2, h: 1 },
+      { x: 25, y: 4 }, { x: 28, y: 4 },
+      { x: 25, y: 5 }, { x: 28, y: 5 },
+      { x: 25, y: 6 }, { x: 28, y: 6 },
+      { x: 26, y: 7, w: 2, h: 1 },
     ]
   },
   wink: {
     label: 'ウインク',
     pixels: [
-      // 左目 −（閉じ）
-      { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 6, y: 3 },
+      // 左目 "−"（閉じ）
+      { x: 9, y: 5, w: 4, h: 1 },
       // 右目（通常）
-      { x: 13, y: 2 }, { x: 13, y: 3 },
+      { x: 26, y: 4, w: 2, h: 4 },
     ]
   },
   heart: {
     label: 'ハート目',
     pixels: [
-      // 左ハート
-      { x: 4, y: 1 }, { x: 6, y: 1 },
-      { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 },
-      { x: 5, y: 3 },
-      // 右ハート
-      { x: 12, y: 1 }, { x: 14, y: 1 },
-      { x: 12, y: 2 }, { x: 13, y: 2 }, { x: 14, y: 2 },
-      { x: 13, y: 3 },
+      // 左ハート ♥
+      { x: 9, y: 3 }, { x: 12, y: 3 },
+      { x: 8, y: 4 }, { x: 9, y: 4 }, { x: 10, y: 4 },
+      { x: 11, y: 4 }, { x: 12, y: 4 }, { x: 13, y: 4 },
+      { x: 9, y: 5 }, { x: 10, y: 5 }, { x: 11, y: 5 }, { x: 12, y: 5 },
+      { x: 10, y: 6 }, { x: 11, y: 6 },
+      // 右ハート ♥
+      { x: 25, y: 3 }, { x: 28, y: 3 },
+      { x: 24, y: 4 }, { x: 25, y: 4 }, { x: 26, y: 4 },
+      { x: 27, y: 4 }, { x: 28, y: 4 }, { x: 29, y: 4 },
+      { x: 25, y: 5 }, { x: 26, y: 5 }, { x: 27, y: 5 }, { x: 28, y: 5 },
+      { x: 26, y: 6 }, { x: 27, y: 6 },
     ]
   },
   sparkle: {
     label: 'キラキラ',
     pixels: [
-      // 左 ✦
-      { x: 5, y: 1 },
-      { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 },
-      { x: 5, y: 3 },
+      // 左 ✦（ダイヤモンド）
+      { x: 10, y: 3 },
+      { x: 9, y: 4 }, { x: 10, y: 4 }, { x: 11, y: 4 },
+      { x: 8, y: 5 }, { x: 9, y: 5 }, { x: 10, y: 5 },
+      { x: 11, y: 5 }, { x: 12, y: 5 },
+      { x: 9, y: 6 }, { x: 10, y: 6 }, { x: 11, y: 6 },
+      { x: 10, y: 7 },
       // 右 ✦
-      { x: 13, y: 1 },
-      { x: 12, y: 2 }, { x: 13, y: 2 }, { x: 14, y: 2 },
-      { x: 13, y: 3 },
+      { x: 27, y: 3 },
+      { x: 26, y: 4 }, { x: 27, y: 4 }, { x: 28, y: 4 },
+      { x: 25, y: 5 }, { x: 26, y: 5 }, { x: 27, y: 5 },
+      { x: 28, y: 5 }, { x: 29, y: 5 },
+      { x: 26, y: 6 }, { x: 27, y: 6 }, { x: 28, y: 6 },
+      { x: 27, y: 7 },
+    ]
+  },
+  sleepy: {
+    label: 'ねむい',
+    pixels: [
+      // 左目 "−"
+      { x: 9, y: 5, w: 4, h: 1 },
+      // 右目 "−"
+      { x: 25, y: 5, w: 4, h: 1 },
+    ]
+  },
+  dead: {
+    label: 'ぐるぐる',
+    pixels: [
+      // 左 "X"
+      { x: 9, y: 3 }, { x: 12, y: 3 },
+      { x: 10, y: 4 }, { x: 11, y: 4 },
+      { x: 10, y: 5 }, { x: 11, y: 5 },
+      { x: 9, y: 6 }, { x: 12, y: 6 },
+      // 右 "X"
+      { x: 25, y: 3 }, { x: 28, y: 3 },
+      { x: 26, y: 4 }, { x: 27, y: 4 },
+      { x: 26, y: 5 }, { x: 27, y: 5 },
+      { x: 25, y: 6 }, { x: 28, y: 6 },
+    ]
+  },
+  cry: {
+    label: '泣き',
+    pixels: [
+      // 左 "T"
+      { x: 9, y: 3, w: 4, h: 1 },
+      { x: 10, y: 4, w: 2, h: 1 },
+      { x: 10, y: 5, w: 2, h: 1 },
+      { x: 10, y: 6, w: 2, h: 1 },
+      { x: 10, y: 7, w: 2, h: 1 },
+      // 右 "T"
+      { x: 25, y: 3, w: 4, h: 1 },
+      { x: 26, y: 4, w: 2, h: 1 },
+      { x: 26, y: 5, w: 2, h: 1 },
+      { x: 26, y: 6, w: 2, h: 1 },
+      { x: 26, y: 7, w: 2, h: 1 },
     ]
   },
 };
@@ -148,87 +213,117 @@ const HEADWEAR = {
   crown: {
     label: '王冠',
     pixels: [
-      // 王冠の尖り
-      { x: 5, y: -2, fill: '#ffd700' },
-      { x: 9, y: -3, fill: '#ffd700' },
-      { x: 13, y: -2, fill: '#ffd700' },
+      // 三つの尖り
+      { x: 10, y: -4, w: 2, h: 2, fill: '#ffd700' },
+      { x: 18, y: -5, w: 2, h: 3, fill: '#ffd700' },
+      { x: 26, y: -4, w: 2, h: 2, fill: '#ffd700' },
       // バンド
-      { x: 4, y: -1, fill: '#ffd700' }, { x: 5, y: -1, fill: '#ffd700' },
-      { x: 6, y: -1, fill: '#ffd700' }, { x: 7, y: -1, fill: '#ff4444' },
-      { x: 8, y: -1, fill: '#ffd700' }, { x: 9, y: -1, fill: '#ffd700' },
-      { x: 10, y: -1, fill: '#ffd700' }, { x: 11, y: -1, fill: '#4488ff' },
-      { x: 12, y: -1, fill: '#ffd700' }, { x: 13, y: -1, fill: '#ffd700' },
-      { x: 14, y: -1, fill: '#ffd700' },
+      { x: 8, y: -2, w: 22, h: 2, fill: '#ffd700' },
+      // 宝石
+      { x: 14, y: -2, w: 2, h: 2, fill: '#ff4444' },
+      { x: 22, y: -2, w: 2, h: 2, fill: '#4488ff' },
     ]
   },
   partyHat: {
     label: 'パーティーハット',
     pixels: [
-      { x: 9, y: -3, fill: '#ffdd00' },
-      { x: 8, y: -2, fill: '#ff4466' }, { x: 9, y: -2, fill: '#44bbff' },
-      { x: 10, y: -2, fill: '#ff4466' },
-      { x: 7, y: -1, fill: '#ff4466' }, { x: 8, y: -1, fill: '#44bbff' },
-      { x: 9, y: -1, fill: '#ff4466' }, { x: 10, y: -1, fill: '#44bbff' },
-      { x: 11, y: -1, fill: '#ff4466' },
+      // 先端飾り（十字型・中心19.0に合わせて小数座標）
+      { x: 18.5, y: -9, w: 1, h: 1, fill: '#bb88dd' },
+      { x: 17.5, y: -8, w: 1, h: 1, fill: '#bb88dd' },
+      { x: 18.5, y: -8, w: 1, h: 1, fill: '#cc99ee' },
+      { x: 19.5, y: -8, w: 1, h: 1, fill: '#bb88dd' },
+      { x: 18.5, y: -7, w: 1, h: 1, fill: '#bb88dd' },
+      // ポール（中心19.0）
+      { x: 18.5, y: -6, w: 1, h: 2, fill: '#555555' },
+      // 帽子段1（小ブロック・中心19.0）
+      { x: 18, y: -4, w: 2, h: 2, fill: '#9966cc' },
+      // 帽子段2（大ブロック・中心19.0）
+      { x: 16, y: -2, w: 6, h: 2, fill: '#7744aa' },
     ]
   },
   catEars: {
     label: '猫耳',
     pixels: [
-      // 左耳
-      { x: 4, y: -2, fill: '_body' },
-      { x: 3, y: -1, fill: '_body' }, { x: 4, y: -1, fill: '#ffaaaa' },
-      { x: 5, y: -1, fill: '_body' },
-      // 右耳
-      { x: 14, y: -2, fill: '_body' },
-      { x: 13, y: -1, fill: '_body' }, { x: 14, y: -1, fill: '#ffaaaa' },
-      { x: 15, y: -1, fill: '_body' },
+      // 左耳（外側）
+      { x: 8, y: -3, w: 2, h: 1, fill: '_body' },
+      { x: 7, y: -2, w: 4, h: 1, fill: '_body' },
+      { x: 6, y: -1, w: 6, h: 1, fill: '_body' },
+      // 左耳内側（ピンク）
+      { x: 8, y: -2, w: 2, h: 1, fill: '#ffaaaa' },
+      { x: 8, y: -1, w: 2, h: 1, fill: '#ffaaaa' },
+      // 右耳（外側）
+      { x: 28, y: -3, w: 2, h: 1, fill: '_body' },
+      { x: 27, y: -2, w: 4, h: 1, fill: '_body' },
+      { x: 26, y: -1, w: 6, h: 1, fill: '_body' },
+      // 右耳内側
+      { x: 28, y: -2, w: 2, h: 1, fill: '#ffaaaa' },
+      { x: 28, y: -1, w: 2, h: 1, fill: '#ffaaaa' },
     ]
   },
-  beanie: {
-    label: 'ニット帽',
+  flowerCrown: {
+    label: '花冠',
     pixels: [
-      // ポンポン
-      { x: 9, y: -3, fill: '#ffffff' },
-      // 帽子本体
-      ...Array.from({ length: 13 }, (_, i) => ({
-        x: 3 + i, y: -2, fill: '#ff6b6b'
-      })),
-      // ボーダー柄のブリム
-      ...Array.from({ length: 13 }, (_, i) => ({
-        x: 3 + i, y: -1, fill: i % 2 === 0 ? '#ff6b6b' : '#ffffff'
-      })),
+      // つる（ベース）
+      { x: 6, y: -1, w: 26, h: 1, fill: '#55aa55' },
+      // 花1（ピンク・左）
+      { x: 8, y: -3, fill: '#ff88aa' },
+      { x: 7, y: -2, fill: '#ff88aa' }, { x: 8, y: -2, fill: '#ffaacc' },
+      { x: 9, y: -2, fill: '#ff88aa' },
+      // 花2（黄色・左中）
+      { x: 14, y: -3, fill: '#ffdd44' },
+      { x: 13, y: -2, fill: '#ffdd44' }, { x: 14, y: -2, fill: '#ffee88' },
+      { x: 15, y: -2, fill: '#ffdd44' },
+      // 花3（水色・中央）
+      { x: 19, y: -3, fill: '#66ccee' },
+      { x: 18, y: -2, fill: '#66ccee' }, { x: 19, y: -2, fill: '#99ddff' },
+      { x: 20, y: -2, fill: '#66ccee' },
+      // 花4（黄色・右中）
+      { x: 24, y: -3, fill: '#ffdd44' },
+      { x: 23, y: -2, fill: '#ffdd44' }, { x: 24, y: -2, fill: '#ffee88' },
+      { x: 25, y: -2, fill: '#ffdd44' },
+      // 花5（ピンク・右）
+      { x: 29, y: -3, fill: '#ff88aa' },
+      { x: 28, y: -2, fill: '#ff88aa' }, { x: 29, y: -2, fill: '#ffaacc' },
+      { x: 30, y: -2, fill: '#ff88aa' },
+      // 葉っぱ
+      { x: 10, y: -1, w: 2, h: 1, fill: '#44884d' },
+      { x: 16, y: -1, w: 2, h: 1, fill: '#44884d' },
+      { x: 21, y: -1, w: 2, h: 1, fill: '#44884d' },
+      { x: 26, y: -1, w: 2, h: 1, fill: '#44884d' },
     ]
   },
-  headphones: {
-    label: 'ヘッドホン',
+  wizardHat: {
+    label: 'ウィザードハット',
     pixels: [
-      // ヘッドバンド
-      ...Array.from({ length: 13 }, (_, i) => ({
-        x: 3 + i, y: -1, fill: '#555555'
-      })),
-      // 左右の接続
-      { x: 2, y: 0, fill: '#555555' }, { x: 16, y: 0, fill: '#555555' },
-      // 左イヤーカップ
-      { x: 1, y: 1, fill: '#555555' }, { x: 1, y: 2, fill: '#333333' },
-      // 右イヤーカップ
-      { x: 17, y: 1, fill: '#555555' }, { x: 17, y: 2, fill: '#333333' },
+      // 星飾り（先端・右に曲がる）
+      { x: 22, y: -8, fill: '#ffdd44' },
+      // 曲がった先端
+      { x: 19, y: -7, w: 3, h: 1, fill: '#9966dd' },
+      // コーン上部
+      { x: 17, y: -6, w: 4, h: 1, fill: '#8855cc' },
+      { x: 16, y: -5, w: 6, h: 1, fill: '#8855cc' },
+      // コーン下部
+      { x: 15, y: -4, w: 8, h: 1, fill: '#7744bb' },
+      { x: 14, y: -3, w: 10, h: 1, fill: '#7744bb' },
+      // ゴールドの帯
+      { x: 11, y: -2, w: 16, h: 1, fill: '#ffdd44' },
+      // つば
+      { x: 11, y: -1, w: 16, h: 1, fill: '#5533aa' },
     ]
   },
-  hackerHood: {
-    label: 'フード',
+  halo: {
+    label: '天使の輪',
     pixels: [
-      // フード上部
-      ...Array.from({ length: 11 }, (_, i) => ({
-        x: 4 + i, y: -2, fill: '#2a2a3a'
-      })),
-      // フード前面
-      ...Array.from({ length: 15 }, (_, i) => ({
-        x: 2 + i, y: -1, fill: '#2a2a3a'
-      })),
-      // フード側面
-      { x: 1, y: 0, fill: '#2a2a3a' }, { x: 1, y: 1, fill: '#2a2a3a' },
-      { x: 17, y: 0, fill: '#2a2a3a' }, { x: 17, y: 1, fill: '#2a2a3a' },
+      // 上弧（奥側・狭い）
+      { x: 14, y: -4, w: 10, h: 1, fill: '#ffd700' },
+      // ハイライト
+      { x: 15, y: -4, w: 2, h: 1, fill: '#ffee88' },
+      // 左側面
+      { x: 12, y: -3, w: 2, h: 1, fill: '#eebb00' },
+      // 右側面
+      { x: 24, y: -3, w: 2, h: 1, fill: '#eebb00' },
+      // 下弧（手前側・広い）
+      { x: 12, y: -2, w: 14, h: 1, fill: '#ddaa00' },
     ]
   },
 };
@@ -242,71 +337,60 @@ const ACCESSORIES = {
   glasses: {
     label: 'メガネ',
     pixels: [
-      // 左レンズ上下フレーム
-      { x: 4, y: 1, fill: '#888888' }, { x: 5, y: 1, fill: '#888888' },
-      { x: 6, y: 1, fill: '#888888' },
-      { x: 4, y: 4, fill: '#888888' }, { x: 5, y: 4, fill: '#888888' },
-      { x: 6, y: 4, fill: '#888888' },
+      // 左フレーム（矩形）
+      { x: 8, y: 3, w: 6, h: 1, fill: '#888888' },  // 上
+      { x: 8, y: 8, w: 6, h: 1, fill: '#888888' },  // 下
+      { x: 8, y: 3, w: 1, h: 6, fill: '#888888' },  // 左辺
+      { x: 13, y: 3, w: 1, h: 6, fill: '#888888' },  // 右辺
       // ブリッジ
-      { x: 7, y: 2, fill: '#888888' }, { x: 8, y: 2, fill: '#888888' },
-      { x: 10, y: 2, fill: '#888888' }, { x: 11, y: 2, fill: '#888888' },
-      // 右レンズ上下フレーム
-      { x: 12, y: 1, fill: '#888888' }, { x: 13, y: 1, fill: '#888888' },
-      { x: 14, y: 1, fill: '#888888' },
-      { x: 12, y: 4, fill: '#888888' }, { x: 13, y: 4, fill: '#888888' },
-      { x: 14, y: 4, fill: '#888888' },
+      { x: 14, y: 5, w: 10, h: 1, fill: '#888888' },
+      // 右フレーム（矩形）
+      { x: 24, y: 3, w: 6, h: 1, fill: '#888888' },  // 上
+      { x: 24, y: 8, w: 6, h: 1, fill: '#888888' },  // 下
+      { x: 24, y: 3, w: 1, h: 6, fill: '#888888' },  // 左辺
+      { x: 29, y: 3, w: 1, h: 6, fill: '#888888' },  // 右辺
     ]
   },
   sunglasses: {
     label: 'サングラス',
     pixels: [
       // 左レンズ（塗りつぶし）
-      { x: 4, y: 1, fill: '#222222' }, { x: 5, y: 1, fill: '#222222' },
-      { x: 6, y: 1, fill: '#222222' },
-      { x: 4, y: 2, fill: '#111111' }, { x: 5, y: 2, fill: '#111111' },
-      { x: 6, y: 2, fill: '#111111' },
-      { x: 4, y: 3, fill: '#111111' }, { x: 5, y: 3, fill: '#111111' },
-      { x: 6, y: 3, fill: '#111111' },
+      { x: 8, y: 3, w: 6, h: 6, fill: '#181818' },
+      { x: 8, y: 3, w: 6, h: 1, fill: '#333333' },
       // ブリッジ
-      { x: 7, y: 2, fill: '#222222' }, { x: 8, y: 2, fill: '#222222' },
-      { x: 10, y: 2, fill: '#222222' }, { x: 11, y: 2, fill: '#222222' },
+      { x: 14, y: 4, w: 10, h: 2, fill: '#222222' },
       // 右レンズ
-      { x: 12, y: 1, fill: '#222222' }, { x: 13, y: 1, fill: '#222222' },
-      { x: 14, y: 1, fill: '#222222' },
-      { x: 12, y: 2, fill: '#111111' }, { x: 13, y: 2, fill: '#111111' },
-      { x: 14, y: 2, fill: '#111111' },
-      { x: 12, y: 3, fill: '#111111' }, { x: 13, y: 3, fill: '#111111' },
-      { x: 14, y: 3, fill: '#111111' },
+      { x: 24, y: 3, w: 6, h: 6, fill: '#181818' },
+      { x: 24, y: 3, w: 6, h: 1, fill: '#333333' },
     ]
   },
   mask: {
     label: 'マスク',
     pixels: [
-      ...Array.from({ length: 11 }, (_, i) => ({
-        x: 4 + i, y: 4, fill: '#ffffff'
-      })),
-      ...Array.from({ length: 11 }, (_, i) => ({
-        x: 4 + i, y: 5, fill: '#eeeeee'
-      })),
+      { x: 8, y: 8, w: 22, h: 3, fill: '#ffffff' },
+      { x: 8, y: 11, w: 22, h: 2, fill: '#eeeeee' },
+      // マスクのひだ
+      { x: 14, y: 9, w: 1, h: 2, fill: '#dddddd' },
+      { x: 19, y: 9, w: 1, h: 2, fill: '#dddddd' },
+      { x: 24, y: 9, w: 1, h: 2, fill: '#dddddd' },
     ]
   },
   blush: {
     label: 'ほっぺ',
     pixels: [
-      { x: 3, y: 3, fill: '#ff8888' }, { x: 3, y: 4, fill: '#ff8888' },
-      { x: 15, y: 3, fill: '#ff8888' }, { x: 15, y: 4, fill: '#ff8888' },
+      { x: 7, y: 7, w: 2, h: 2, fill: '#ff8888' },
+      { x: 29, y: 7, w: 2, h: 2, fill: '#ff8888' },
     ]
   },
   scarf: {
     label: 'マフラー',
     pixels: [
-      // バンド（体下端を覆う）
-      ...Array.from({ length: 13 }, (_, i) => ({
-        x: 3 + i, y: 6, fill: '#ff4466'
-      })),
-      // 垂れ下がり部分（足の間に配置）
-      { x: 8, y: 7, fill: '#ff4466' }, { x: 9, y: 7, fill: '#ff4466' },
-      { x: 8, y: 8, fill: '#dd3355' }, { x: 9, y: 8, fill: '#dd3355' },
+      // バンド
+      { x: 6, y: 12, w: 26, h: 1, fill: '#dd3355' },
+      { x: 6, y: 13, w: 26, h: 1, fill: '#ff4466' },
+      // 垂れ下がり（足の間の中央）
+      { x: 16, y: 14, w: 3, h: 3, fill: '#ff4466' },
+      { x: 19, y: 14, w: 2, h: 2, fill: '#dd3355' },
     ]
   },
 };
@@ -321,68 +405,79 @@ const ITEMS = {
     label: 'コーヒー',
     pixels: [
       // 湯気
-      { x: 17, y: 1, fill: 'rgba(255,255,255,0.4)' },
+      { x: 35, y: 2, fill: 'rgba(255,255,255,0.4)' },
+      { x: 36, y: 1, fill: 'rgba(255,255,255,0.3)' },
       // カップ
-      { x: 17, y: 2, fill: '#ffffff' }, { x: 18, y: 2, fill: '#ffffff' },
-      { x: 17, y: 3, fill: '#ffffff' }, { x: 18, y: 3, fill: '#ffffff' },
+      { x: 34, y: 4, w: 3, h: 5, fill: '#ffffff' },
+      // コーヒー液面
+      { x: 34, y: 4, w: 3, h: 2, fill: '#6b3a1f' },
       // 持ち手
-      { x: 19, y: 2, fill: '#dddddd' },
+      { x: 37, y: 5, w: 1, h: 3, fill: '#dddddd' },
     ]
   },
   laptop: {
     label: 'ノートPC',
     pixels: [
+      // 画面フレーム上
+      { x: 34, y: 2, w: 5, h: 1, fill: '#333333' },
       // 画面
-      { x: 17, y: 2, fill: '#4488ff' }, { x: 18, y: 2, fill: '#4488ff' },
-      { x: 19, y: 2, fill: '#4488ff' },
-      { x: 17, y: 3, fill: '#3366cc' }, { x: 18, y: 3, fill: '#3366cc' },
-      { x: 19, y: 3, fill: '#3366cc' },
+      { x: 34, y: 3, w: 5, h: 4, fill: '#4488ff' },
+      // 画面コンテンツ
+      { x: 35, y: 4, w: 3, h: 1, fill: '#88ccff' },
+      { x: 35, y: 5, w: 2, h: 1, fill: '#66aaee' },
+      // 画面フレーム下
+      { x: 34, y: 7, w: 5, h: 1, fill: '#333333' },
       // キーボード
-      { x: 17, y: 4, fill: '#aaaaaa' }, { x: 18, y: 4, fill: '#999999' },
-      { x: 19, y: 4, fill: '#aaaaaa' },
+      { x: 34, y: 8, w: 5, h: 2, fill: '#aaaaaa' },
+      { x: 35, y: 9, w: 3, h: 1, fill: '#888888' },
     ]
   },
   sword: {
     label: '剣',
     pixels: [
-      // 刃（上向き）
-      { x: 1, y: -2, fill: '#dddddd' },
-      { x: 1, y: -1, fill: '#cccccc' },
-      { x: 1, y: 0, fill: '#cccccc' },
-      { x: 1, y: 1, fill: '#bbbbbb' },
+      // 刃先
+      { x: 3, y: -5, w: 2, h: 1, fill: '#eeeeff' },
+      // 刃
+      { x: 3, y: -4, w: 2, h: 4, fill: '#ccccdd' },
+      // 刃下部
+      { x: 3, y: 0, w: 2, h: 3, fill: '#bbbbcc' },
       // 鍔
-      { x: 0, y: 2, fill: '#ffd700' }, { x: 1, y: 2, fill: '#ffd700' },
+      { x: 1, y: 3, w: 6, h: 2, fill: '#ffd700' },
       // 柄
-      { x: 1, y: 3, fill: '#8b4513' },
-      { x: 1, y: 4, fill: '#8b4513' },
+      { x: 3, y: 5, w: 2, h: 4, fill: '#8b4513' },
+      // 柄巻き
+      { x: 3, y: 6, w: 2, h: 1, fill: '#a0522d' },
+      { x: 3, y: 8, w: 2, h: 1, fill: '#a0522d' },
     ]
   },
   flag: {
     label: '旗',
     pixels: [
       // ポール
-      { x: 2, y: -3, fill: '#888888' },
-      { x: 2, y: -2, fill: '#888888' },
-      { x: 2, y: -1, fill: '#888888' },
-      { x: 2, y: 0, fill: '#888888' },
-      { x: 2, y: 1, fill: '#888888' },
+      { x: 4, y: -5, w: 1, h: 12, fill: '#888888' },
+      // ポール先端
+      { x: 4, y: -5, w: 1, h: 1, fill: '#ffd700' },
       // 旗本体
-      { x: 3, y: -3, fill: '#ff4444' }, { x: 4, y: -3, fill: '#ff4444' },
-      { x: 5, y: -3, fill: '#ff4444' },
-      { x: 3, y: -2, fill: '#ff4444' }, { x: 4, y: -2, fill: '#ff6666' },
-      { x: 5, y: -2, fill: '#ff4444' },
-      { x: 3, y: -1, fill: '#ff4444' }, { x: 4, y: -1, fill: '#ff4444' },
-      { x: 5, y: -1, fill: '#ff4444' },
+      { x: 5, y: -5, w: 6, h: 3, fill: '#ff4444' },
+      { x: 5, y: -2, w: 6, h: 2, fill: '#ff6666' },
+      // 旗のアクセント
+      { x: 7, y: -4, w: 2, h: 1, fill: '#ffaaaa' },
     ]
   },
   heart: {
     label: 'ハート',
     pixels: [
-      // フローティングハート（右上）
-      { x: 17, y: -2, fill: '#ff4466' }, { x: 19, y: -2, fill: '#ff4466' },
-      { x: 17, y: -1, fill: '#ff4466' }, { x: 18, y: -1, fill: '#ff6688' },
-      { x: 19, y: -1, fill: '#ff4466' },
-      { x: 18, y: 0, fill: '#ff4466' },
+      // ハート上部（二つの山）
+      { x: 34, y: -4, w: 2, h: 2, fill: '#ff4466' },
+      { x: 38, y: -4, w: 2, h: 2, fill: '#ff4466' },
+      // 中央
+      { x: 33, y: -2, w: 8, h: 2, fill: '#ff4466' },
+      // 下部
+      { x: 34, y: 0, w: 6, h: 2, fill: '#ff4466' },
+      { x: 35, y: 2, w: 4, h: 1, fill: '#ff4466' },
+      { x: 36, y: 3, w: 2, h: 1, fill: '#ff4466' },
+      // ハイライト
+      { x: 35, y: -3, fill: '#ff6688' },
     ]
   },
 };
@@ -393,7 +488,6 @@ const ITEMS = {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** SVG要素を作成するヘルパー */
 const createSvgElement = (tag, attrs = {}) => {
   const el = document.createElementNS(SVG_NS, tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -414,14 +508,13 @@ const buildPartGroup = (partDef, layerName, colors, defaultFill) => {
   const group = createSvgElement('g', { 'data-layer': layerName });
   for (const p of partDef.pixels) {
     const fill = p.fill ? resolveFill(p.fill, colors) : defaultFill;
-    const rect = createSvgElement('rect', {
-      x: p.x + PAD_LEFT,
-      y: p.y + PAD_TOP,
-      width: 1,
-      height: 1,
+    group.appendChild(createSvgElement('rect', {
+      x: p.x + OFFSET_X,
+      y: p.y + OFFSET_Y,
+      width: p.w || 1,
+      height: p.h || 1,
       fill,
-    });
-    group.appendChild(rect);
+    }));
   }
   return group;
 };
@@ -434,28 +527,22 @@ const buildAvatarSvg = (colors, parts) => {
     'shape-rendering': 'crispEdges',
   });
 
-  // レイヤー1: ベースボディ
+  // レイヤー1: ベースボディ（矩形群）
   const bodyGroup = createSvgElement('g', { 'data-layer': 'body' });
-  for (let row = 0; row < MAP_ROWS; row++) {
-    for (let col = 0; col < MAP_COLS; col++) {
-      if (BASE_BODY[row][col] !== 1) continue;
-      const rect = createSvgElement('rect', {
-        x: col + PAD_LEFT,
-        y: row + PAD_TOP,
-        width: 1,
-        height: 1,
-        fill: colors.body,
-      });
-      bodyGroup.appendChild(rect);
-    }
+  for (const r of BODY_RECTS) {
+    bodyGroup.appendChild(createSvgElement('rect', {
+      x: r.x + OFFSET_X,
+      y: r.y + OFFSET_Y,
+      width: r.w,
+      height: r.h,
+      fill: colors.body,
+    }));
   }
   svg.appendChild(bodyGroup);
 
   // レイヤー2: 表情（目）
   const expression = EXPRESSIONS[parts.expression] || EXPRESSIONS.default;
-  svg.appendChild(buildPartGroup(
-    expression, 'eyes', colors, colors.eye
-  ));
+  svg.appendChild(buildPartGroup(expression, 'eyes', colors, colors.eye));
 
   // レイヤー3: 被り物
   const headwear = HEADWEAR[parts.headwear] || HEADWEAR.none;
@@ -463,7 +550,7 @@ const buildAvatarSvg = (colors, parts) => {
     svg.appendChild(buildPartGroup(headwear, 'headwear', colors));
   }
 
-  // レイヤー4: アクセサリー（目の上に描画されるため、サングラス等で目が隠れる）
+  // レイヤー4: アクセサリー（目の上に描画）
   const accessory = ACCESSORIES[parts.accessory] || ACCESSORIES.none;
   if (accessory.pixels.length > 0) {
     svg.appendChild(buildPartGroup(accessory, 'accessory', colors));
@@ -517,18 +604,17 @@ const renderPreview = () => {
    パーツのミニプレビューSVG
    =========================== */
 
-/** パーツのピクセルデータから小さなプレビューSVGを生成 */
 const buildPartPreview = (pixels, colors, defaultFill) => {
   if (!pixels || pixels.length === 0) return null;
 
-  // バウンディングボックスを計算
+  // バウンディングボックス（w/h考慮）
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   for (const p of pixels) {
     minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
+    maxX = Math.max(maxX, p.x + (p.w || 1) - 1);
     minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
+    maxY = Math.max(maxY, p.y + (p.h || 1) - 1);
   }
 
   const pad = 1;
@@ -544,14 +630,13 @@ const buildPartPreview = (pixels, colors, defaultFill) => {
     const fill = p.fill
       ? resolveFill(p.fill, colors)
       : (defaultFill || colors.eye);
-    const rect = createSvgElement('rect', {
+    svg.appendChild(createSvgElement('rect', {
       x: p.x - minX + pad,
       y: p.y - minY + pad,
-      width: 1,
-      height: 1,
+      width: p.w || 1,
+      height: p.h || 1,
       fill,
-    });
-    svg.appendChild(rect);
+    }));
   }
 
   return svg;
@@ -594,7 +679,6 @@ const renderTabs = () => {
   });
 };
 
-/** カラーピッカーUI */
 const renderColorOptions = (presets, currentColor, onChange) => {
   const wrapper = document.createElement('div');
   wrapper.classList.add('color-section');
@@ -643,7 +727,6 @@ const renderPartGrid = (partsMap, currentKey, onChange, defaultFill) => {
     if (key === currentKey) btn.classList.add('selected');
     btn.style.animationDelay = `${i * 0.04}s`;
 
-    // ミニプレビュー or アイコン
     const iconEl = document.createElement('div');
     iconEl.classList.add('part-btn__icon');
 
@@ -671,7 +754,6 @@ const renderPartGrid = (partsMap, currentKey, onChange, defaultFill) => {
   return grid;
 };
 
-/** オプションエリアの描画 */
 const renderOptions = () => {
   const optionsContainer = document.getElementById('panel-options');
   if (!optionsContainer) return;
@@ -758,18 +840,15 @@ const renderOptions = () => {
 const randomize = () => {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  // カラーをランダムに
   state.colors.background = pick(BG_PRESETS);
   state.colors.body = pick(BODY_PRESETS);
   state.colors.eye = pick(EYE_PRESETS);
 
-  // パーツをランダムに
   state.expression = pick(Object.keys(EXPRESSIONS));
   state.headwear = pick(Object.keys(HEADWEAR));
   state.accessory = pick(Object.keys(ACCESSORIES));
   state.item = pick(Object.keys(ITEMS));
 
-  // バウンスアニメーション
   const preview = document.getElementById('preview');
   preview?.classList.remove('bounce');
   void preview?.offsetWidth;
@@ -791,7 +870,6 @@ const downloadPng = () => {
 
   ctx.imageSmoothingEnabled = false;
 
-  // 背景
   ctx.fillStyle = state.colors.background;
   ctx.fillRect(0, 0, size, size);
 
@@ -802,7 +880,6 @@ const downloadPng = () => {
 
   const img = new Image();
   img.onload = () => {
-    // viewBoxのアスペクト比を維持してキャンバス中央に描画
     const aspectRatio = VIEW_W / VIEW_H;
     let drawW, drawH;
     if (aspectRatio > 1) {
