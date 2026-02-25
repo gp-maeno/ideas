@@ -1,5 +1,5 @@
 /**
- * Unofficial Avatar Generator
+ * Avatar Generator
  * 2xスケールのピクセルアート + パーツカスタマイズ
  *
  * 座標系:
