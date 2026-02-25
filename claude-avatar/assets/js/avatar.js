@@ -13,7 +13,7 @@
    =========================== */
 
 const DEFAULT_COLORS = {
-  body: '#c07850',
+  body: '#D87757',
   eye: '#1a1a1a',
   background: '#1a1a2e'
 };
@@ -49,14 +49,14 @@ const BODY_RECTS = [
   { x: 6, y: 0, w: 26, h: 14 },   // 体本体
   { x: 4, y: 4, w: 2, h: 4 },     // 左手
   { x: 32, y: 4, w: 2, h: 4 },    // 右手
-  { x: 8, y: 14, w: 2, h: 4 },    // 左足外
-  { x: 12, y: 14, w: 2, h: 4 },   // 左足内
-  { x: 24, y: 14, w: 2, h: 4 },   // 右足内
-  { x: 28, y: 14, w: 2, h: 4 },   // 右足外
+  { x: 6, y: 14, w: 2, h: 4 },    // 左足外
+  { x: 10, y: 14, w: 2, h: 4 },   // 左足内
+  { x: 26, y: 14, w: 2, h: 4 },   // 右足内
+  { x: 30, y: 14, w: 2, h: 4 },   // 右足外
 ];
 
 // 描画オフセット（ボディ座標 → SVG座標）
-const OFFSET_X = 5;
+const OFFSET_X = 4;
 const OFFSET_Y = 9;
 
 // SVG viewBoxサイズ
@@ -188,18 +188,12 @@ const EXPRESSIONS = {
   cry: {
     label: '泣き',
     pixels: [
-      // 左 "T"
-      { x: 9, y: 3, w: 4, h: 1 },
-      { x: 10, y: 4, w: 2, h: 1 },
-      { x: 10, y: 5, w: 2, h: 1 },
-      { x: 10, y: 6, w: 2, h: 1 },
-      { x: 10, y: 7, w: 2, h: 1 },
+      // 左 "T"（太い横棒＋細い涙）
+      { x: 9, y: 3, w: 4, h: 2 },
+      { x: 10.5, y: 5, w: 1, h: 3 },
       // 右 "T"
-      { x: 25, y: 3, w: 4, h: 1 },
-      { x: 26, y: 4, w: 2, h: 1 },
-      { x: 26, y: 5, w: 2, h: 1 },
-      { x: 26, y: 6, w: 2, h: 1 },
-      { x: 26, y: 7, w: 2, h: 1 },
+      { x: 25, y: 3, w: 4, h: 2 },
+      { x: 26.5, y: 5, w: 1, h: 3 },
     ]
   },
 };
@@ -326,6 +320,32 @@ const HEADWEAR = {
       { x: 12, y: -2, w: 14, h: 1, fill: '#ddaa00' },
     ]
   },
+  birthdayCake: {
+    label: 'ケーキ',
+    pixels: [
+      // ろうそくの炎（3本・中心19.0に小数座標で対称）
+      { x: 14.5, y: -7, fill: '#ffdd33' },
+      { x: 18.5, y: -7, fill: '#ffdd33' },
+      { x: 22.5, y: -7, fill: '#ffdd33' },
+      // ろうそく（カラフル）
+      { x: 14.5, y: -6, w: 1, h: 2, fill: '#ff5588' },
+      { x: 18.5, y: -6, w: 1, h: 2, fill: '#55bbff' },
+      { x: 22.5, y: -6, w: 1, h: 2, fill: '#66dd77' },
+      // クリーム（白・波形・中心19.0）
+      { x: 13, y: -4, w: 3, h: 1, fill: '#fff5ee' },
+      { x: 17, y: -4, w: 4, h: 1, fill: '#fff5ee' },
+      { x: 22, y: -4, w: 3, h: 1, fill: '#fff5ee' },
+      // ケーキ上段（ピンク・中心19.0）
+      { x: 13, y: -3, w: 12, h: 1, fill: '#ff88aa' },
+      // いちご飾り（小数座標で対称）
+      { x: 14.5, y: -3, fill: '#ff2244' },
+      { x: 22.5, y: -3, fill: '#ff2244' },
+      // ケーキ下段（華やかなピンク・中心19.0）
+      { x: 11, y: -2, w: 16, h: 2, fill: '#ff6699' },
+      // デコライン
+      { x: 11, y: -1, w: 16, h: 1, fill: '#ff4477' },
+    ]
+  },
 };
 
 /* ===========================
@@ -334,21 +354,17 @@ const HEADWEAR = {
 
 const ACCESSORIES = {
   none: { label: 'なし', pixels: [] },
-  glasses: {
-    label: 'メガネ',
+  mustache: {
+    label: 'ヒゲ',
     pixels: [
-      // 左フレーム（矩形）
-      { x: 8, y: 3, w: 6, h: 1, fill: '#888888' },  // 上
-      { x: 8, y: 8, w: 6, h: 1, fill: '#888888' },  // 下
-      { x: 8, y: 3, w: 1, h: 6, fill: '#888888' },  // 左辺
-      { x: 13, y: 3, w: 1, h: 6, fill: '#888888' },  // 右辺
-      // ブリッジ
-      { x: 14, y: 5, w: 10, h: 1, fill: '#888888' },
-      // 右フレーム（矩形）
-      { x: 24, y: 3, w: 6, h: 1, fill: '#888888' },  // 上
-      { x: 24, y: 8, w: 6, h: 1, fill: '#888888' },  // 下
-      { x: 24, y: 3, w: 1, h: 6, fill: '#888888' },  // 左辺
-      { x: 29, y: 3, w: 1, h: 6, fill: '#888888' },  // 右辺
+      // 左ヒゲ（カイゼル風・中心19.0）
+      { x: 14, y: 10, w: 4, h: 1, fill: '#4a3a2a' },
+      { x: 12, y: 11, w: 6, h: 1, fill: '#4a3a2a' },
+      { x: 10, y: 12, w: 2, h: 1, fill: '#4a3a2a' },
+      // 右ヒゲ
+      { x: 20, y: 10, w: 4, h: 1, fill: '#4a3a2a' },
+      { x: 20, y: 11, w: 6, h: 1, fill: '#4a3a2a' },
+      { x: 26, y: 12, w: 2, h: 1, fill: '#4a3a2a' },
     ]
   },
   sunglasses: {
@@ -415,21 +431,16 @@ const ITEMS = {
       { x: 37, y: 5, w: 1, h: 3, fill: '#dddddd' },
     ]
   },
-  laptop: {
-    label: 'ノートPC',
+  smartphone: {
+    label: 'スマホ',
     pixels: [
-      // 画面フレーム上
-      { x: 34, y: 2, w: 5, h: 1, fill: '#333333' },
+      // 本体フレーム
+      { x: 35, y: 3, w: 3, h: 7, fill: '#222222' },
       // 画面
-      { x: 34, y: 3, w: 5, h: 4, fill: '#4488ff' },
+      { x: 35, y: 4, w: 3, h: 5, fill: '#4488ff' },
       // 画面コンテンツ
-      { x: 35, y: 4, w: 3, h: 1, fill: '#88ccff' },
-      { x: 35, y: 5, w: 2, h: 1, fill: '#66aaee' },
-      // 画面フレーム下
-      { x: 34, y: 7, w: 5, h: 1, fill: '#333333' },
-      // キーボード
-      { x: 34, y: 8, w: 5, h: 2, fill: '#aaaaaa' },
-      { x: 35, y: 9, w: 3, h: 1, fill: '#888888' },
+      { x: 36, y: 5, w: 1, h: 1, fill: '#88ccff' },
+      { x: 36, y: 7, w: 1, h: 1, fill: '#66aaee' },
     ]
   },
   sword: {
@@ -453,15 +464,15 @@ const ITEMS = {
   flag: {
     label: '旗',
     pixels: [
-      // ポール
-      { x: 4, y: -5, w: 1, h: 12, fill: '#888888' },
+      // ポール（右手側）
+      { x: 33, y: -5, w: 1, h: 12, fill: '#888888' },
       // ポール先端
-      { x: 4, y: -5, w: 1, h: 1, fill: '#ffd700' },
-      // 旗本体
-      { x: 5, y: -5, w: 6, h: 3, fill: '#ff4444' },
-      { x: 5, y: -2, w: 6, h: 2, fill: '#ff6666' },
+      { x: 33, y: -5, w: 1, h: 1, fill: '#ffd700' },
+      // 旗本体（ポールの右に広がる）
+      { x: 34, y: -5, w: 6, h: 3, fill: '#ff4444' },
+      { x: 34, y: -2, w: 6, h: 2, fill: '#ff6666' },
       // 旗のアクセント
-      { x: 7, y: -4, w: 2, h: 1, fill: '#ffaaaa' },
+      { x: 36, y: -4, w: 2, h: 1, fill: '#ffaaaa' },
     ]
   },
   heart: {
@@ -858,6 +869,18 @@ const randomize = () => {
   renderOptions();
 };
 
+const clearAll = () => {
+  state.colors = { ...DEFAULT_COLORS };
+  state.expression = 'default';
+  state.headwear = 'none';
+  state.accessory = 'none';
+  state.item = 'none';
+
+  renderPreview();
+  renderTabs();
+  renderOptions();
+};
+
 const downloadPng = () => {
   const svgEl = document.querySelector('#preview svg');
   if (!svgEl) return;
@@ -911,6 +934,7 @@ const init = () => {
   renderTabs();
   renderOptions();
 
+  document.getElementById('btn-clear')?.addEventListener('click', clearAll);
   document.getElementById('btn-random')?.addEventListener('click', randomize);
   document.getElementById('btn-download')?.addEventListener('click', downloadPng);
 };

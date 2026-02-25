@@ -114,6 +114,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  align-self: center;
+  width: 100%;
   aspect-ratio: 1 / 1;
   max-height: 340px;
   border-radius: var(--radius);
