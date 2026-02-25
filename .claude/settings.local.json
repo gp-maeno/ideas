@@ -16,7 +16,31 @@
       "mcp__claude_ai_Context7__resolve-library-id",
       "mcp__claude_ai_Context7__query-docs",
       "Bash(bash /Users/tsubasa/project/claude/ideas/_scripts/build-manifest.sh)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(git commit:*)",
+      "Bash(npx playwright:*)",
+      "Read(//private/tmp/**)",
+      "Read(//usr/local/lib/**)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(/Users/tsubasa/Library/Python/3.9/bin/playwright install:*)",
+      "Bash(open:*)",
+      "Read(//usr/local/bin/**)",
+      "Read(//usr/local/**)",
+      "Bash(/usr/local/bin/npx playwright --version)",
+      "Bash(node -e:*)",
+      "Bash(node --version:*)",
+      "Bash(pip3 list:*)",
+      "Bash(/tmp/test_sugoroku.py:*)",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:humation.app)",
+      "Bash(git checkout main)",
+      "Bash(git merge feat/claude-avatar)"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/Users/tsubasa/project/claude/ideas/.plan"
     ]
   }
 }
