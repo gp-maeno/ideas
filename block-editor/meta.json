@@ -1,0 +1,7 @@
+{
+  "title": "Block Editor",
+  "description": "Notionライクなブロックエディター。見出し・リスト・コード・テーブル・画像など10種のブロックに対応。localStorage保存・JSON入出力機能付き。",
+  "tags": ["editor", "wysiwyg", "notion", "cms", "editor.js"],
+  "date": "2026-02-25",
+  "type": "spa"
+}

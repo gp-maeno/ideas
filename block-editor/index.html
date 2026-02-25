@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Block Editor</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="./assets/css/editor.css">
+</head>
+<body>
+  <div class="app">
+    <!-- ヘッダー -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-left">
+          <a href="../" class="back-link">← Gallery</a>
+          <span class="header-title">Block Editor</span>
+        </div>
+        <div class="header-actions">
+          <span id="save-status" class="save-status"></span>
+          <button id="btn-new" class="btn btn-ghost btn-icon" title="新規作成">
+            <!-- アイコン: ファイル追加 -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </button>
+          <button id="btn-import" class="btn btn-ghost btn-icon" title="JSONインポート">
+            <!-- アイコン: アップロード -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </button>
+          <button id="btn-export" class="btn btn-ghost btn-icon" title="JSONエクスポート">
+            <!-- アイコン: ダウンロード -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- エディターエリア -->
+    <main class="editor-container">
+      <div id="editor"></div>
+    </main>
+  </div>
+
+  <!-- モーダル -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <h2 id="modal-title" class="modal-title"></h2>
+      <div class="modal-body">
+        <textarea id="modal-textarea" spellcheck="false"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn btn-ghost">キャンセル</button>
+        <button id="modal-confirm" class="btn btn-accent">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Editor.js コア -->
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.31.3/dist/editorjs.umd.min.js"></script>
+
+  <!-- Editor.js プラグイン -->
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.8/dist/header.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/nested-list@1.4.3/dist/nested-list.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/code@2.9.4/dist/code.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/table@2.4.5/dist/table.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2.10.3/dist/image.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.7.6/dist/quote.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1.4.2/dist/delimiter.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/warning@1.4.1/dist/warning.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.2/dist/inline-code.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1.4.0/dist/marker.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/editorjs-toggle-block@0.3.16/dist/bundle.min.js"></script>
+
+  <!-- アプリケーション -->
+  <script type="module" src="./assets/js/editor.js"></script>
+</body>
+</html>
