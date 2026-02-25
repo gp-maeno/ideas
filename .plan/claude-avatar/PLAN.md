@@ -1,4 +1,4 @@
-# Claude Avatar Generator - 実装計画
+# Unofficial Avatar Generator - 実装計画
 
 ## 概要
 
@@ -36,7 +36,7 @@ Claude Code CLIにログイン時に表示されるピクセルアートキャ�
 
 ```
 ┌─────────────────────────────────────────────┐
-│ ← Gallery          Claude Avatar Generator  │
+│ ← Gallery      Unofficial Avatar Generator  │
 ├─────────────────────────────────────────────┤
 │                                             │
 │           ┌───────────────┐                 │
