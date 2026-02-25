@@ -77,7 +77,7 @@ Claude Code CLIにログイン時に表示されるピクセルアートキャ�
 
 - **PNG**: SVGをCanvasに描画 → `toDataURL()` → ダウンロード
 - 出力サイズ: 512x512px（ピクセルアートなのでシャープに）
-- ファイル名: `claude-avatar.png`
+- ファイル名: `avatar.png`
 
 ## 実装フェーズ
 

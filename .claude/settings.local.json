@@ -40,7 +40,8 @@
     ],
     "additionalDirectories": [
       "/tmp",
-      "/Users/tsubasa/project/claude/ideas/.plan"
+      "/Users/tsubasa/project/claude/ideas/.plan",
+      "/Users/tsubasa/project/claude/ideas/claude-avatar"
     ]
   }
 }

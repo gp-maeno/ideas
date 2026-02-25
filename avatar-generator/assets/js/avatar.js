@@ -918,7 +918,7 @@ const downloadPng = () => {
     URL.revokeObjectURL(url);
 
     const link = document.createElement('a');
-    link.download = 'claude-avatar.png';
+    link.download = 'avatar.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
