@@ -148,7 +148,7 @@ export function createToolsConfig() {
 }
 
 /**
- * 初期データ（空のエディター用）
+ * 初期データ（サンプルコンテンツ付き）
  */
 export const INITIAL_DATA = {
   time: Date.now(),
@@ -156,14 +156,99 @@ export const INITIAL_DATA = {
     {
       type: 'header',
       data: {
-        text: '',
+        text: 'Block Editor へようこそ',
         level: 1
       }
     },
     {
       type: 'paragraph',
       data: {
-        text: ''
+        text: 'Notionライクなブロックエディターです。テキストを選択してインラインツールを使ったり、<code class="inline-code">+</code> ボタンからブロックを追加できます。'
+      }
+    },
+    {
+      type: 'header',
+      data: {
+        text: '対応ブロック',
+        level: 2
+      }
+    },
+    {
+      type: 'list',
+      data: {
+        style: 'unordered',
+        items: [
+          { content: '見出し（H1〜H3）', items: [] },
+          { content: 'リスト（箇条書き・番号付き・ネスト対応）', items: [] },
+          { content: 'コードブロック', items: [] },
+          { content: 'テーブル', items: [] },
+          { content: '画像（URL入力 / ファイルアップロード）', items: [] },
+          { content: '引用・区切り線・コールアウト・トグル', items: [] }
+        ]
+      }
+    },
+    {
+      type: 'header',
+      data: {
+        text: 'コードブロックの例',
+        level: 2
+      }
+    },
+    {
+      type: 'code',
+      data: {
+        code: 'const editor = new EditorJS({\n  holder: "editor",\n  tools: { /* ... */ }\n});'
+      }
+    },
+    {
+      type: 'header',
+      data: {
+        text: '引用',
+        level: 2
+      }
+    },
+    {
+      type: 'quote',
+      data: {
+        text: 'シンプルであることは、複雑であることよりも難しい。',
+        caption: 'Steve Jobs',
+        alignment: 'left'
+      }
+    },
+    {
+      type: 'delimiter',
+      data: {}
+    },
+    {
+      type: 'header',
+      data: {
+        text: 'テーブル',
+        level: 2
+      }
+    },
+    {
+      type: 'table',
+      data: {
+        withHeadings: true,
+        content: [
+          ['機能', '説明', 'ショートカット'],
+          ['太字', 'テキストを太字に', 'Ctrl+B'],
+          ['斜体', 'テキストを斜体に', 'Ctrl+I'],
+          ['リンク', 'URLを挿入', 'Ctrl+K']
+        ]
+      }
+    },
+    {
+      type: 'warning',
+      data: {
+        title: 'ヒント',
+        message: 'エディターの内容は自動的にブラウザに保存されます。右上のボタンからJSONエクスポート・インポートも可能です。'
+      }
+    },
+    {
+      type: 'paragraph',
+      data: {
+        text: '自由に編集してお試しください。'
       }
     }
   ],
