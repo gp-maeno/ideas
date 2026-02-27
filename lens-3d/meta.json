@@ -1,0 +1,7 @@
+{
+  "title": "LENS 3D — メガネ試着シミュレーター",
+  "description": "MediaPipe FaceMesh × Three.js による3Dメガネ試着アプリ。12種類のフレーム、15色のカラー、顔型診断レコメンド機能付き。",
+  "tags": ["ar", "three.js", "mediapipe", "face-tracking", "spa"],
+  "date": "2026-02-27",
+  "type": "spa"
+}

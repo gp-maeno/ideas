@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>LENS 3D — Virtual Try-On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0a0a;--surface:#111;--surface2:#1a1a1a;--border:rgba(255,255,255,0.07);
+  --text:#f0ece4;--dim:rgba(240,236,228,0.4);
+  --accent:#c9a96e;--accent-dim:rgba(201,169,110,0.15);
+  --T:cubic-bezier(.4,0,.2,1);
+}
+html,body{background:#000;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;height:100%;overflow:hidden;touch-action:none;}
+
+#videoEl{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;}
+#threeCanvas{position:fixed;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none;}
+
+/* ── Loading ── */
+#loadingScreen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity .7s ease;}
+#loadingScreen.hidden{opacity:0;pointer-events:none;}
+.loading-logo{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;letter-spacing:.25em;}
+.loading-logo span{color:var(--accent);}
+.loading-bar-wrap{width:180px;height:1px;background:var(--border);border-radius:1px;overflow:hidden;}
+.loading-bar{height:100%;background:var(--accent);width:0%;transition:width .4s ease;}
+.loading-msg{font-size:10px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;}
+
+/* ── Permission ── */
+#permissionScreen{position:fixed;inset:0;background:var(--bg);z-index:190;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:40px;text-align:center;}
+#permissionScreen.show{display:flex;}
+.permission-icon{font-size:48px;}
+.permission-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;}
+.permission-desc{color:var(--dim);font-size:13px;line-height:1.7;}
+.btn-allow{margin-top:8px;padding:14px 40px;border-radius:100px;border:1px solid var(--accent);background:var(--accent-dim);color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;letter-spacing:.12em;cursor:pointer;transition:all .2s;}
+.btn-allow:hover{background:var(--accent);color:var(--bg);}
+
+/* ── Header ── */
+header{position:fixed;top:0;left:0;right:0;z-index:50;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.22em;}
+.logo span{color:var(--accent);}
+.logo sub{font-size:10px;color:var(--dim);letter-spacing:.1em;vertical-align:sub;margin-left:2px;}
+.header-right{display:flex;gap:10px;}
+.btn-icon{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:rgba(0,0,0,.55);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;backdrop-filter:blur(8px);}
+.btn-icon:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── Status ── */
+#statusChip{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:50;background:rgba(0,0,0,.6);border:1px solid var(--border);backdrop-filter:blur(10px);padding:5px 14px;border-radius:100px;font-size:10px;letter-spacing:.14em;color:var(--dim);display:flex;align-items:center;gap:7px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#555;transition:background .3s;}
+.status-dot.active{background:#4ade80;animation:blink 2s infinite;}
+.status-dot.searching{background:var(--accent);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Info Panel ── */
+.info-panel{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:8px;}
+.info-card{background:rgba(0,0,0,.65);border:1px solid var(--border);backdrop-filter:blur(12px);border-radius:10px;padding:10px 12px;min-width:88px;}
+.info-label{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
+.info-value{font-family:'Cormorant Garamond',serif;font-size:14px;}
+
+/* Fav */
+#favBadge{position:fixed;top:108px;right:16px;z-index:50;font-size:22px;cursor:pointer;transition:transform .2s;filter:drop-shadow(0 2px 8px rgba(0,0,0,.7));}
+#favBadge:hover{transform:scale(1.2);}
+
+/* ── Bottom Panel ── */
+.bottom-panel{position:fixed;bottom:0;left:0;right:0;z-index:40;background:linear-gradient(to top,rgba(0,0,0,.96) 60%,transparent);padding-top:24px;padding-bottom:max(18px,env(safe-area-inset-bottom));}
+.section-label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);padding:0 22px;margin-bottom:9px;}
+.frame-carousel{display:flex;gap:8px;padding:2px 22px 13px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;}
+.frame-carousel::-webkit-scrollbar{display:none;}
+.frame-card{flex-shrink:0;scroll-snap-align:center;width:72px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .2s;}
+.frame-thumb{width:72px;height:40px;background:var(--surface2);border-radius:8px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;padding:5px;overflow:hidden;transition:all .25s;}
+.frame-thumb svg{width:100%;}
+.frame-card.active .frame-thumb{border-color:var(--accent);background:var(--accent-dim);box-shadow:0 0 16px rgba(201,169,110,.2);transform:translateY(-3px);}
+.frame-card.recommended .frame-thumb{border-color:rgba(100,200,120,.6);background:rgba(100,200,120,.08);}
+.frame-card.recommended::after{content:'✓';position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#4ade80;color:#000;font-size:9px;display:flex;align-items:center;justify-content:center;}
+.frame-card{position:relative;}
+.frame-name{font-size:8px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;transition:color .2s;}
+.frame-card.active .frame-name{color:var(--accent);}
+.frame-card.recommended .frame-name{color:rgba(100,220,130,.8);}
+
+.color-section{padding:0 22px 11px;display:flex;align-items:center;gap:12px;}
+.color-row{display:flex;gap:7px;flex-wrap:wrap;}
+.swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;flex-shrink:0;}
+.swatch.active{border-color:var(--text);transform:scale(1.18);}
+.swatch:hover{transform:scale(1.1);}
+.swatch.tortoise{background:radial-gradient(circle at 30% 40%,#2d1200 20%,transparent 21%),radial-gradient(circle at 70% 60%,#1a0a00 15%,transparent 16%),linear-gradient(135deg,#7a3a0a,#c47820,#5a2808);}
+.swatch-divider{width:1px;height:18px;background:var(--border);flex-shrink:0;}
+.lens-label{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;}
+
+.actions-row{display:flex;align-items:center;justify-content:space-between;padding:0 24px;}
+.btn-text{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);cursor:pointer;background:none;border:none;font-family:inherit;transition:color .2s;padding:8px 4px;}
+.btn-text:hover{color:var(--text);}
+.btn-text.highlight{color:var(--accent);}
+.btn-shutter{width:54px;height:54px;border-radius:50%;background:var(--text);border:3px solid rgba(255,255,255,.15);cursor:pointer;position:relative;transition:all .2s;outline:3px solid rgba(255,255,255,.06);outline-offset:3px;}
+.btn-shutter:hover{background:var(--accent);}
+.btn-shutter:active{transform:scale(.9);}
+.btn-shutter::after{content:'';position:absolute;inset:7px;border-radius:50%;background:var(--bg);}
+.fav-wrap{position:relative;cursor:pointer;}
+.fav-count{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:9px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+
+/* ── Face Diagnosis Panel ── */
+#diagPanel{
+  position:fixed;inset:0;z-index:150;
+  display:flex;align-items:flex-end;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .4s var(--T);
+}
+#diagPanel.show{opacity:1;pointer-events:all;}
+
+.diag-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);}
+
+.diag-sheet{
+  position:relative;
+  width:100%;
+  background:var(--surface);
+  border-radius:24px 24px 0 0;
+  border:1px solid var(--border);
+  border-bottom:none;
+  padding:28px 24px max(28px,env(safe-area-inset-bottom));
+  transform:translateY(100%);
+  transition:transform .45s var(--T);
+  max-height:90vh;
+  overflow-y:auto;
+}
+#diagPanel.show .diag-sheet{transform:translateY(0);}
+
+.diag-handle{width:36px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 20px;}
+
+.diag-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:26px;font-weight:300;
+  margin-bottom:4px;
+}
+.diag-subtitle{font-size:11px;color:var(--dim);letter-spacing:.1em;margin-bottom:24px;}
+
+/* Face shape result */
+.face-result{
+  display:flex;gap:18px;align-items:center;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:22px;
+}
+.face-shape-icon{
+  width:72px;height:72px;
+  flex-shrink:0;
+}
+.face-shape-icon svg{width:100%;height:100%;}
+.face-result-text{}
+.face-result-type{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;}
+.face-result-desc{font-size:11px;color:var(--dim);line-height:1.6;margin-top:4px;}
+
+/* Measurements */
+.measurements{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px;}
+.measure-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;}
+.measure-val{font-family:'Cormorant Garamond',serif;font-size:18px;}
+.measure-lbl{font-size:8px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+
+/* Recommended frames */
+.rec-title{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
+.rec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+.rec-card{
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 6px;
+  transition:all .22s;
+}
+.rec-card:hover,.rec-card.active{border-color:var(--accent);background:var(--accent-dim);}
+.rec-card svg{width:100%;}
+.rec-card-name{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center;}
+.rec-card:hover .rec-card-name,.rec-card.active .rec-card-name{color:var(--accent);}
+.rec-badge{
+  display:inline-block;
+  font-size:8px;letter-spacing:.08em;
+  padding:2px 7px;border-radius:100px;
+  background:rgba(74,222,128,.15);
+  color:#4ade80;
+  border:1px solid rgba(74,222,128,.25);
+  margin-bottom:6px;
+}
+
+/* Avoid list */
+.avoid-list{margin-bottom:4px;}
+.avoid-title{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+.avoid-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.avoid-tag{font-size:10px;padding:4px 12px;border-radius:100px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--dim);}
+
+/* Close btn */
+.diag-close{
+  width:100%;padding:14px;
+  background:none;border:1px solid var(--border);
+  border-radius:12px;color:var(--dim);
+  font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;margin-top:18px;
+}
+.diag-close:hover{border-color:var(--accent);color:var(--accent);}
+
+/* Scanning overlay */
+#scanOverlay{
+  position:fixed;inset:0;z-index:145;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+}
+#scanOverlay.show{display:flex;}
+.scan-ring{
+  width:200px;height:260px;border-radius:50%;
+  border:1.5px solid rgba(201,169,110,.4);
+  position:relative;
+  animation:scanPulse 2s ease-in-out infinite;
+}
+.scan-ring::after{
+  content:'';position:absolute;inset:-8px;border-radius:50%;
+  border:1px solid rgba(201,169,110,.15);
+}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 0 0 rgba(201,169,110,.2)} 50%{box-shadow:0 0 0 12px rgba(201,169,110,0)}}
+.scan-line{
+  position:absolute;left:0;right:0;height:1.5px;
+  background:linear-gradient(to right,transparent,rgba(201,169,110,.6),transparent);
+  top:0;animation:scanLine 2s linear infinite;
+}
+@keyframes scanLine{0%{top:0;opacity:1} 100%{top:100%;opacity:.3}}
+.scan-label{font-size:12px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;}
+.scan-progress{font-size:10px;letter-spacing:.12em;color:var(--dim);}
+
+.toast{position:fixed;bottom:168px;left:50%;transform:translateX(-50%) translateY(8px);background:rgba(10,10,10,.9);border:1px solid var(--border);padding:9px 18px;border-radius:100px;font-size:11px;color:var(--text);opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;backdrop-filter:blur(8px);z-index:100;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+#flash{position:fixed;inset:0;background:white;z-index:999;pointer-events:none;opacity:0;transition:opacity .05s;}
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+  <div class="loading-logo">L<span>E</span>NS</div>
+  <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
+  <div class="loading-msg" id="loadingMsg">Loading 3D Engine...</div>
+</div>
+
+<div id="permissionScreen">
+  <div class="permission-icon">📷</div>
+  <div class="permission-title">カメラへのアクセス</div>
+  <div class="permission-desc">3Dメガネ試着には<br>カメラの使用許可が必要です</div>
+  <button class="btn-allow" onclick="requestCamera()">カメラを起動する</button>
+</div>
+
+<!-- Scanning overlay -->
+<div id="scanOverlay">
+  <div class="scan-ring"><div class="scan-line"></div></div>
+  <div class="scan-label">顔型スキャン中</div>
+  <div class="scan-progress" id="scanProgress">顔を正面に向けてください...</div>
+</div>
+
+<video id="videoEl" playsinline autoplay muted></video>
+<canvas id="threeCanvas"></canvas>
+<div id="flash"></div>
+
+<header>
+  <div class="logo">L<span>E</span>NS<sub>3D</sub></div>
+  <div class="header-right">
+    <button class="btn-icon" onclick="toggleMirror()">↔</button>
+    <button class="btn-icon" onclick="showToast('シェアリンクをコピーしました')">↗</button>
+  </div>
+</header>
+
+<div id="statusChip">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">INITIALIZING</span>
+</div>
+
+<div class="info-panel">
+  <div class="info-card"><div class="info-label">Frame</div><div class="info-value" id="infoFrame">Wellington</div></div>
+  <div class="info-card"><div class="info-label">Color</div><div class="info-value" id="infoColor">Black</div></div>
+  <div class="info-card"><div class="info-label">Lens</div><div class="info-value" id="infoLens">Clear</div></div>
+</div>
+
+<div id="favBadge" onclick="toggleFav()">🤍</div>
+<div class="toast" id="toast"></div>
+
+<div class="bottom-panel">
+  <div class="section-label">Frame Shape</div>
+  <div class="frame-carousel" id="frameCarousel"></div>
+  <div class="section-label">Color</div>
+  <div class="color-section">
+    <div class="color-row" id="frameColors"></div>
+    <div class="swatch-divider"></div>
+    <div class="lens-label">Lens</div>
+    <div class="color-row" id="lensColors"></div>
+  </div>
+  <div class="actions-row">
+    <button class="btn-text highlight" id="diagBtn" onclick="startDiagnosis()">顔型診断</button>
+    <button class="btn-shutter" onclick="capturePhoto()"></button>
+    <div class="fav-wrap" onclick="showToast('お気に入り一覧')">
+      <div class="btn-icon">♡</div>
+      <div class="fav-count" id="favCount">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- Diagnosis Result Panel -->
+<div id="diagPanel">
+  <div class="diag-backdrop" onclick="closeDiag()"></div>
+  <div class="diag-sheet">
+    <div class="diag-handle"></div>
+    <div class="diag-title">顔型診断結果</div>
+    <div class="diag-subtitle" id="diagSubtitle">FACE SHAPE ANALYSIS</div>
+
+    <div class="face-result">
+      <div class="face-shape-icon" id="faceShapeIcon"></div>
+      <div class="face-result-text">
+        <div class="rec-badge">BEST MATCH</div>
+        <div class="face-result-type" id="faceResultType">-</div>
+        <div class="face-result-desc" id="faceResultDesc">-</div>
+      </div>
+    </div>
+
+    <div class="measurements" id="measurements"></div>
+
+    <div class="rec-title">おすすめフレーム</div>
+    <div class="rec-grid" id="recGrid"></div>
+
+    <div class="avoid-list">
+      <div class="avoid-title">避けたいフレーム</div>
+      <div class="avoid-tags" id="avoidTags"></div>
+    </div>
+
+    <button class="diag-close" onclick="closeDiag()">閉じる</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+const FRAMES = [
+  {id:'wellington',name:'Wellington'},{id:'boston',name:'Boston'},
+  {id:'round',name:'Round'},{id:'square',name:'Square'},
+  {id:'oval',name:'Oval'},{id:'fox',name:'Fox'},
+  {id:'browline',name:'Browline'},{id:'hexagon',name:'Hexagon'},
+  {id:'teardrop',name:'Teardrop'},{id:'rimless',name:'Rimless'},
+  {id:'nylor',name:'Nylor'},{id:'octagon',name:'Octagon'},
+];
+
+const FRAME_COLORS = [
+  {name:'Black',     hex:'#111111',b:'#444',  metal:0.0,rough:0.45},
+  {name:'Dk Brown',  hex:'#3d1a00',b:'#6a3010',metal:0.0,rough:0.55},
+  {name:'Navy',      hex:'#0f1f3d',b:'#1a3060',metal:0.0,rough:0.5},
+  {name:'Gray',      hex:'#666666',b:'#888',  metal:0.0,rough:0.5},
+  {name:'Tortoise',  hex:null,     b:'#8B5e1a',metal:0.0,rough:0.55,cls:'tortoise',rgb:[0.48,0.25,0.06]},
+  {name:'Clear',     hex:'rgba(200,220,240,0.18)',b:'rgba(180,200,230,0.7)',metal:0.0,rough:0.1,isTransparent:true},
+  {name:'White',     hex:'#ddd8ce',b:'#bbb',  metal:0.0,rough:0.3},
+  {name:'Red',       hex:'#c02020',b:'#d04040',metal:0.0,rough:0.45},
+  {name:'Yellow',    hex:'#c49000',b:'#e0ae00',metal:0.0,rough:0.45},
+  {name:'Green',     hex:'#1a5c2a',b:'#266b38',metal:0.0,rough:0.5},
+  {name:'Pink',      hex:'#d4607a',b:'#e07090',metal:0.0,rough:0.45},
+  {name:'Purple',    hex:'#4a1a70',b:'#6a2a90',metal:0.0,rough:0.45},
+  {name:'Gold',      hex:'#b8860c',b:'#d4a018',metal:0.85,rough:0.18},
+  {name:'Silver',    hex:'#909898',b:'#b0b8b8',metal:0.9,rough:0.15},
+  {name:'Rose Gold', hex:'#c08878',b:'#d8a090',metal:0.8,rough:0.2},
+];
+
+const LENS_COLORS = [
+  {name:'Clear', r:0.88,g:0.93,b:1.0, opacity:0.08,transmission:0.96},
+  {name:'Smoke', r:0.12,g:0.12,b:0.12,opacity:0.72,transmission:0.28},
+  {name:'Blue',  r:0.3,g:0.6,b:0.95,  opacity:0.38,transmission:0.6},
+  {name:'Pink',  r:0.92,g:0.4,b:0.55, opacity:0.35,transmission:0.62},
+  {name:'Amber', r:0.9,g:0.55,b:0.12, opacity:0.4, transmission:0.58},
+  {name:'Green', r:0.25,g:0.7,b:0.35, opacity:0.38,transmission:0.6},
+];
+
+// ═══════════════════════════════════════════════════════
+// FACE SHAPE DEFINITIONS
+// ═══════════════════════════════════════════════════════
+const FACE_SHAPES = {
+  oval: {
+    name:'オーバル', en:'Oval',
+    desc:'バランスの良い卵型。どんなフレームも似合うベーシックな顔型です。',
+    icon: drawOvalFace,
+    best: ['wellington','boston','square','hexagon','octagon','browline','fox'],
+    avoid: ['round','oval'],
+  },
+  round: {
+    name:'ラウンド', en:'Round',
+    desc:'丸みのある顔型。縦のラインを強調するフレームがよく似合います。',
+    icon: drawRoundFace,
+    best: ['square','wellington','hexagon','octagon','browline','fox','teardrop'],
+    avoid: ['round','oval','boston'],
+  },
+  square: {
+    name:'スクエア', en:'Square',
+    desc:'エラが張ったシャープな顔型。柔らかい曲線のフレームでバランスを。',
+    icon: drawSquareFace,
+    best: ['round','oval','boston','rimless','nylor'],
+    avoid: ['square','octagon','hexagon'],
+  },
+  heart: {
+    name:'ハート', en:'Heart',
+    desc:'おでこが広く顎が細いフレーム。下部が細めのフレームが似合います。',
+    icon: drawHeartFace,
+    best: ['oval','round','boston','rimless','teardrop'],
+    avoid: ['fox','browline','hexagon'],
+  },
+  oblong: {
+    name:'ロング', en:'Oblong',
+    desc:'縦に長い顔型。横幅のあるフレームでバランスを取ると◎。',
+    icon: drawOblongFace,
+    best: ['round','boston','oval','browline','wellington'],
+    avoid: ['rimless','teardrop','nylor'],
+  },
+  diamond: {
+    name:'ダイヤモンド', en:'Diamond',
+    desc:'頬骨が張り、顎と額が細め。フレームの上下が目立つデザインが合います。',
+    icon: drawDiamondFace,
+    best: ['oval','rimless','browline','nylor','wellington'],
+    avoid: ['square','octagon','hexagon'],
+  },
+};
+
+// Face icon SVGs
+function svgFaceBase(path, highlight='') {
+  return `<svg viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="${path}" stroke="#c9a96e" stroke-width="1.5" fill="rgba(201,169,110,0.06)"/>
+    ${highlight}
+    <circle cx="28" cy="44" r="3" fill="none" stroke="rgba(201,169,110,0.5)" stroke-width="1"/>
+    <circle cx="52" cy="44" r="3" fill="none" stroke="rgba(201,169,110,0.5)" stroke-width="1"/>
+    <path d="M33 62 Q40 67 47 62" stroke="rgba(201,169,110,0.4)" stroke-width="1.2" fill="none"/>
+  </svg>`;
+}
+function drawOvalFace() { return svgFaceBase('M40 5 C20 5,8 25,8 48 C8 72,22 95,40 95 C58 95,72 72,72 48 C72 25,60 5,40 5 Z'); }
+function drawRoundFace() { return svgFaceBase('M40 8 C18 8,8 28,8 50 C8 72,22 92,40 92 C58 92,72 72,72 50 C72 28,62 8,40 8 Z'); }
+function drawSquareFace() { return svgFaceBase('M15 15 Q15 5,40 5 Q65 5,65 15 L66 75 Q66 92,40 92 Q14 92,14 75 Z'); }
+function drawHeartFace() { return svgFaceBase('M8 20 Q10 5,40 5 Q70 5,72 20 L68 60 Q60 90,40 96 Q20 90,12 60 Z'); }
+function drawOblongFace() { return svgFaceBase('M40 3 C22 3,12 20,12 45 C12 72,24 97,40 97 C56 97,68 72,68 45 C68 20,58 3,40 3 Z'); }
+function drawDiamondFace() { return svgFaceBase('M40 5 L65 35 Q70 55,58 78 Q50 95,40 95 Q30 95,22 78 Q10 55,15 35 Z'); }
+
+// ═══════════════════════════════════════════════════════
+// THREE.JS
+// ═══════════════════════════════════════════════════════
+const threeCanvas = document.getElementById('threeCanvas');
+const renderer = new THREE.WebGLRenderer({canvas:threeCanvas,alpha:true,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+let aspect = window.innerWidth/window.innerHeight;
+const CAM_SIZE = 1;
+const camera = new THREE.OrthographicCamera(-CAM_SIZE*aspect,CAM_SIZE*aspect,CAM_SIZE,-CAM_SIZE,0.01,50);
+camera.position.z = 5;
+
+scene.add(new THREE.AmbientLight(0xfff5e8,0.7));
+const dir = new THREE.DirectionalLight(0xffeedd,1.2); dir.position.set(0.5,1.5,3); scene.add(dir);
+const fill = new THREE.PointLight(0xaaccff,0.5,20); fill.position.set(-2,1,4); scene.add(fill);
+
+let glassesGroup = new THREE.Group();
+scene.add(glassesGroup);
+
+function resizeRenderer() {
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h); aspect=w/h;
+  camera.left=-CAM_SIZE*aspect; camera.right=CAM_SIZE*aspect;
+  camera.top=CAM_SIZE; camera.bottom=-CAM_SIZE;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resizeRenderer);
+resizeRenderer();
+
+// ─── Geometry helpers ──────────────────────────────────
+const HW=0.46,HH=0.33,TUBE_R=0.038,LENS_Z=0.01,EYE_SEP=1.06;
+
+function shapeRoundedRect(hw,hh,r){
+  const s=new THREE.Shape();
+  s.moveTo(-hw+r,-hh); s.lineTo(hw-r,-hh); s.quadraticCurveTo(hw,-hh,hw,-hh+r);
+  s.lineTo(hw,hh-r);   s.quadraticCurveTo(hw,hh,hw-r,hh);
+  s.lineTo(-hw+r,hh);  s.quadraticCurveTo(-hw,hh,-hw,hh-r);
+  s.lineTo(-hw,-hh+r); s.quadraticCurveTo(-hw,-hh,-hw+r,-hh);
+  return s;
+}
+function shapeEllipse(hw,hh,segs=48){
+  const s=new THREE.Shape();
+  for(let i=0;i<=segs;i++){const a=(i/segs)*Math.PI*2;if(i===0)s.moveTo(Math.cos(a)*hw,Math.sin(a)*hh);else s.lineTo(Math.cos(a)*hw,Math.sin(a)*hh);}
+  return s;
+}
+function shapePolygon(pts){const s=new THREE.Shape();s.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)s.lineTo(pts[i][0],pts[i][1]);s.lineTo(pts[0][0],pts[0][1]);return s;}
+function getShape(type){
+  const hw=HW,hh=HH;
+  switch(type){
+    case 'wellington':return shapeRoundedRect(hw,hh,0.12);
+    case 'square':return shapeRoundedRect(hw,hh,0.04);
+    case 'boston':{const s=new THREE.Shape();s.moveTo(-hw,-hh*0.2);s.bezierCurveTo(-hw,-hh,hw,-hh,hw,-hh*0.2);s.bezierCurveTo(hw,hh,-hw,hh,-hw,-hh*0.2);return s;}
+    case 'round':return shapeEllipse((hw+hh)*0.52,(hw+hh)*0.52);
+    case 'oval':return shapeEllipse(hw,hh);
+    case 'fox':{const s=new THREE.Shape();s.moveTo(-hw,0);s.bezierCurveTo(-hw,-hh,0,-hh*1.15,hw,-hh*0.7);s.bezierCurveTo(hw*1.05,-hh*0.2,hw,hh*0.9,0,hh);s.bezierCurveTo(-hw*0.7,hh,-hw,hh*0.4,-hw,0);return s;}
+    case 'browline':return shapeRoundedRect(hw,hh,0.10);
+    case 'hexagon':{const pts=[];for(let i=0;i<6;i++){const a=i*Math.PI/3-Math.PI/6;pts.push([Math.cos(a)*hw,Math.sin(a)*hh]);}return shapePolygon(pts);}
+    case 'teardrop':{const s=new THREE.Shape();s.moveTo(0,-hh*1.1);s.bezierCurveTo(hw*0.9,-hh*0.6,hw,hh*0.4,0,hh*0.9);s.bezierCurveTo(-hw,hh*0.4,-hw*0.9,-hh*0.6,0,-hh*1.1);return s;}
+    case 'rimless':return shapeEllipse(hw,hh);
+    case 'nylor':return shapeRoundedRect(hw,hh,0.12);
+    case 'octagon':{const cut=hw*0.32;return shapePolygon([[-hw+cut,-hh],[hw-cut,-hh],[hw,-hh+cut],[hw,hh-cut],[hw-cut,hh],[-hw+cut,hh],[-hw,hh-cut],[-hw,-hh+cut]]);}
+    default:return shapeRoundedRect(hw,hh,0.12);
+  }
+}
+function shapeToPoints3D(shape,z=0,d=64){return shape.getPoints(d).map(p=>new THREE.Vector3(p.x,p.y,z));}
+
+function hexToRGB(hex){
+  const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  return[r,g,b];
+}
+function makeMaterial(fc,lc){
+  let fColor;
+  if(fc.rgb) fColor=new THREE.Color(fc.rgb[0],fc.rgb[1],fc.rgb[2]);
+  else if(fc.isTransparent) fColor=new THREE.Color(0.82,0.9,1.0);
+  else{const[r,g,b]=hexToRGB(fc.hex);fColor=new THREE.Color(r,g,b);}
+  const frameMat=new THREE.MeshStandardMaterial({color:fColor,metalness:fc.metal,roughness:fc.rough,transparent:!!fc.isTransparent,opacity:fc.isTransparent?0.45:1.0});
+  const lensMat=new THREE.MeshPhysicalMaterial({color:new THREE.Color(lc.r,lc.g,lc.b),metalness:0,roughness:0.05,transmission:lc.transmission,transparent:true,opacity:lc.opacity,side:THREE.DoubleSide,depthWrite:false});
+  return{frameMat,lensMat};
+}
+
+function buildGlasses(frameType,fc,lc){
+  const grp=new THREE.Group();
+  const{frameMat,lensMat}=makeMaterial(fc,lc);
+  const extrude={depth:TUBE_R*1.6,bevelEnabled:true,bevelThickness:TUBE_R*0.5,bevelSize:TUBE_R*0.4,bevelSegments:4};
+  const isRimless=frameType==='rimless',isNylor=frameType==='nylor',isBrow=frameType==='browline';
+
+  for(let side=-1;side<=1;side+=2){
+    const cx=side*EYE_SEP*0.5,lg=new THREE.Group();
+    lg.position.x=cx; grp.add(lg);
+    const shape=getShape(frameType);
+    lg.add(new THREE.Mesh(new THREE.ShapeGeometry(shape,16),lensMat.clone()));
+
+    if(isRimless){
+      const c=new THREE.CatmullRomCurve3(shapeToPoints3D(shape,0,80),true,'catmullrom',0.5);
+      lg.add(new THREE.Mesh(new THREE.TubeGeometry(c,80,TUBE_R*0.4,8,true),frameMat));
+    } else if(isNylor){
+      const us=new THREE.Shape();
+      us.moveTo(-HW,0);us.bezierCurveTo(-HW,-HH*1.05,HW,-HH*1.05,HW,0);us.lineTo(HW,0);us.lineTo(-HW,0);
+      const ug=new THREE.ExtrudeGeometry(us,extrude);ug.translate(0,0,-TUBE_R*0.8);
+      lg.add(new THREE.Mesh(ug,frameMat));
+      const lp=[];for(let i=0;i<=32;i++){const t=i/32*Math.PI;lp.push(new THREE.Vector3(Math.cos(t)*HW,Math.sin(-t)*HH,0));}
+      lg.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(lp),40,TUBE_R*0.35,6,false),frameMat));
+    } else if(isBrow){
+      const ts=new THREE.Shape();ts.moveTo(-HW,HH*0.25);ts.bezierCurveTo(-HW,HH*1.05,HW,HH*1.05,HW,HH*0.25);ts.lineTo(HW,HH*0.25);ts.lineTo(-HW,HH*0.25);
+      const tg=new THREE.ExtrudeGeometry(ts,{...extrude,depth:TUBE_R*2.5});tg.translate(0,0,-TUBE_R*1.25);
+      lg.add(new THREE.Mesh(tg,frameMat));
+      const bp=shapeToPoints3D(shape,0,80).filter(p=>p.y<HH*0.28);
+      if(bp.length>2) lg.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bp),48,TUBE_R*0.45,6,false),frameMat));
+    } else {
+      const c=new THREE.CatmullRomCurve3(shapeToPoints3D(shape,0,80),true,'catmullrom',0.5);
+      lg.add(new THREE.Mesh(new THREE.TubeGeometry(c,80,TUBE_R,8,true),frameMat));
+    }
+  }
+  // Bridge
+  const blen=(EYE_SEP*0.5-HW+0.02)*2;
+  const bpts=[];for(let i=0;i<=16;i++){const t=i/16*Math.PI;bpts.push(new THREE.Vector3((i/16-0.5)*blen,-Math.sin(t)*0.04,0));}
+  grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bpts),16,TUBE_R*0.75,8,false),frameMat));
+  // Arms
+  for(let side=-1;side<=1;side+=2){
+    const ac=new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side*(EYE_SEP*0.5+HW-0.02),0,0),
+      new THREE.Vector3(side*(EYE_SEP*0.5+HW+0.3),-0.04,-0.15),
+      new THREE.Vector3(side*(EYE_SEP*0.5+HW+0.5),-0.04,-0.3)
+    ]);
+    grp.add(new THREE.Mesh(new THREE.TubeGeometry(ac,20,TUBE_R*0.72,8,false),frameMat));
+  }
+  return grp;
+}
+
+function rebuildGlasses(){
+  scene.remove(glassesGroup);
+  glassesGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});
+  glassesGroup=buildGlasses(FRAMES[ST.frameIdx].id,FRAME_COLORS[ST.fcolorIdx],LENS_COLORS[ST.lcolorIdx]);
+  glassesGroup.visible=false;
+  scene.add(glassesGroup);
+}
+
+const ST={frameIdx:0,fcolorIdx:0,lcolorIdx:0,favCount:0,isFaved:false,mirror:true};
+rebuildGlasses();
+
+// ─── Render loop ──────────────────────────────────────
+(function loop(){requestAnimationFrame(loop);renderer.render(scene,camera);})();
+
+// ═══════════════════════════════════════════════════════
+// FACE TRACKING
+// ═══════════════════════════════════════════════════════
+const IDX={L_OUTER:33,L_INNER:133,R_OUTER:263,R_INNER:362,FOREHEAD:10,CHIN:152,NOSE:4,L_TEMPLE:234,R_TEMPLE:454,
+  L_JAW:172,R_JAW:397,L_CHEEK:234,R_CHEEK:454,L_BROW_OUT:70,R_BROW_OUT:300};
+
+const lerpPos=new THREE.Vector3(),lerpQuat=new THREE.Quaternion(),lerpScale=new THREE.Vector3(1,1,1);
+
+function mpTo3D(lm,cw,ch){
+  const a=cw/ch;
+  return new THREE.Vector3((lm.x-0.5)*2*CAM_SIZE*a,-(lm.y-0.5)*2*CAM_SIZE,-lm.z*4);
+}
+
+function updateGlassesTransform(lm,cw,ch){
+  const lo=mpTo3D(lm[IDX.L_OUTER],cw,ch),li=mpTo3D(lm[IDX.L_INNER],cw,ch);
+  const ro=mpTo3D(lm[IDX.R_OUTER],cw,ch),ri=mpTo3D(lm[IDX.R_INNER],cw,ch);
+  const fh=mpTo3D(lm[IDX.FOREHEAD],cw,ch),ch_=mpTo3D(lm[IDX.CHIN],cw,ch);
+  const lEye=new THREE.Vector3().addVectors(lo,li).multiplyScalar(0.5);
+  const rEye=new THREE.Vector3().addVectors(ro,ri).multiplyScalar(0.5);
+  const center=new THREE.Vector3().addVectors(lEye,rEye).multiplyScalar(0.5);
+  center.z+=0.06;
+  const right=new THREE.Vector3().subVectors(rEye,lEye).normalize();
+  const down=new THREE.Vector3().subVectors(ch_,fh).normalize();
+  const fwd=new THREE.Vector3().crossVectors(right,down).normalize();
+  const up=new THREE.Vector3().crossVectors(fwd,right).normalize();
+  const tq=new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right,up,fwd));
+  const sc=lEye.distanceTo(rEye)/EYE_SEP;
+  lerpPos.lerp(center,0.18);
+  lerpQuat.slerp(tq,0.18);
+  lerpScale.lerp(new THREE.Vector3(sc,sc,sc),0.18);
+  glassesGroup.position.copy(lerpPos);
+  glassesGroup.quaternion.copy(lerpQuat);
+  glassesGroup.scale.copy(lerpScale);
+  glassesGroup.visible=true;
+}
+
+// ═══════════════════════════════════════════════════════
+// FACE SHAPE ANALYZER
+// ═══════════════════════════════════════════════════════
+function dist2D(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+
+let landmarkBuffer=[]; // buffer frames for stable measurement
+const BUFFER_SIZE=30;
+
+function analyzeFaceShape(lm){
+  // Key measurements (normalized 0–1 coords)
+  const faceH    = dist2D(lm[IDX.FOREHEAD], lm[IDX.CHIN]);
+  const cheekW   = dist2D(lm[IDX.L_TEMPLE], lm[IDX.R_TEMPLE]);
+  const jawW     = dist2D(lm[IDX.L_JAW],    lm[IDX.R_JAW]);
+  const browW    = dist2D(lm[IDX.L_BROW_OUT],lm[IDX.R_BROW_OUT]);
+
+  // Ratios
+  const hToW     = faceH / cheekW;          // face height / width
+  const jawRatio = jawW  / cheekW;          // jaw width / cheekbone width
+  const browRatio= browW / cheekW;          // forehead / cheekbone
+
+  // Classify
+  let shape;
+  if(hToW > 1.45) {
+    shape = 'oblong';
+  } else if(jawRatio < 0.72 && browRatio > 0.9) {
+    shape = 'heart';
+  } else if(browRatio < 0.82 && jawRatio < 0.82) {
+    shape = 'diamond';
+  } else if(jawRatio > 0.88 && browRatio > 0.88 && hToW < 1.25) {
+    shape = 'square';
+  } else if(hToW < 1.2 && jawRatio > 0.82) {
+    shape = 'round';
+  } else {
+    shape = 'oval';
+  }
+
+  return {
+    shape,
+    measurements: {
+      'Face H/W':  hToW.toFixed(2),
+      'Jaw Ratio': jawRatio.toFixed(2),
+      'Brow Ratio':browRatio.toFixed(2),
+    },
+    raw: {faceH, cheekW, jawW, browW}
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// DIAGNOSIS FLOW
+// ═══════════════════════════════════════════════════════
+let diagnosisActive=false;
+let diagnosisFrames=[];
+let diagnosisTimer=null;
+
+function startDiagnosis(){
+  if(!cameraReady){ showToast('カメラを起動してから診断してください'); return; }
+  if(!lastLandmarks){ showToast('顔が検出されていません'); return; }
+  diagnosisActive=true;
+  diagnosisFrames=[];
+  document.getElementById('scanOverlay').classList.add('show');
+  document.getElementById('diagBtn').disabled=true;
+  let countdown=3;
+  document.getElementById('scanProgress').textContent=`${countdown}秒間、正面を向いてください...`;
+  const tick=setInterval(()=>{
+    countdown--;
+    document.getElementById('scanProgress').textContent=
+      countdown>0?`計測中... ${countdown}秒`:'分析しています...';
+    if(countdown<=0){
+      clearInterval(tick);
+      setTimeout(()=>{
+        diagnosisActive=false;
+        document.getElementById('scanOverlay').classList.remove('show');
+        document.getElementById('diagBtn').disabled=false;
+        if(diagnosisFrames.length>5) showDiagResult();
+        else showToast('スキャン失敗。顔を正面に向けてやり直してください');
+      },400);
+    }
+  },1000);
+}
+
+function showDiagResult(){
+  // Average measurements over captured frames
+  let sumHW=0,sumJaw=0,sumBrow=0;
+  diagnosisFrames.forEach(d=>{
+    sumHW+=parseFloat(d.measurements['Face H/W']);
+    sumJaw+=parseFloat(d.measurements['Jaw Ratio']);
+    sumBrow+=parseFloat(d.measurements['Brow Ratio']);
+  });
+  const n=diagnosisFrames.length;
+  const avgHW=sumHW/n, avgJaw=sumJaw/n, avgBrow=sumBrow/n;
+
+  // Re-classify with averages
+  let shape;
+  if(avgHW>1.45) shape='oblong';
+  else if(avgJaw<0.72&&avgBrow>0.9) shape='heart';
+  else if(avgBrow<0.82&&avgJaw<0.82) shape='diamond';
+  else if(avgJaw>0.88&&avgBrow>0.88&&avgHW<1.25) shape='square';
+  else if(avgHW<1.2&&avgJaw>0.82) shape='round';
+  else shape='oval';
+
+  const fs=FACE_SHAPES[shape];
+
+  // Render icon
+  document.getElementById('faceShapeIcon').innerHTML=fs.icon();
+  document.getElementById('faceResultType').textContent=`${fs.en} / ${fs.name}`;
+  document.getElementById('faceResultDesc').textContent=fs.desc;
+  document.getElementById('diagSubtitle').textContent=`${fs.en.toUpperCase()} FACE TYPE`;
+
+  // Measurements
+  document.getElementById('measurements').innerHTML=[
+    {lbl:'H/W比',val:avgHW.toFixed(2)},
+    {lbl:'顎幅比',val:avgJaw.toFixed(2)},
+    {lbl:'額幅比',val:avgBrow.toFixed(2)},
+  ].map(m=>`<div class="measure-card">
+    <div class="measure-val">${m.val}</div>
+    <div class="measure-lbl">${m.lbl}</div>
+  </div>`).join('');
+
+  // Recommended frames
+  document.getElementById('recGrid').innerHTML=fs.best.slice(0,4).map(id=>{
+    const f=FRAMES.find(x=>x.id===id);
+    if(!f)return '';
+    const fc=FRAME_COLORS[ST.fcolorIdx],lc=LENS_COLORS[ST.lcolorIdx];
+    return `<div class="rec-card" onclick="applyRecommended('${id}')">
+      ${thumbSVG(id,fc,lc)}
+      <div class="rec-card-name">${f.name}</div>
+    </div>`;
+  }).join('');
+
+  // Avoid tags
+  document.getElementById('avoidTags').innerHTML=fs.avoid.map(id=>{
+    const f=FRAMES.find(x=>x.id===id);
+    return f?`<div class="avoid-tag">${f.name}</div>`:'';
+  }).join('');
+
+  // Highlight recommended in carousel
+  document.querySelectorAll('.frame-card').forEach(card=>{
+    const idx=parseInt(card.dataset?.idx??card.getAttribute('onclick')?.match(/\d+/)?.[0]??-1);
+    if(idx>=0) card.classList.toggle('recommended', fs.best.includes(FRAMES[idx].id));
+  });
+
+  document.getElementById('diagPanel').classList.add('show');
+  showToast(`診断完了: ${fs.en}型`);
+}
+
+function applyRecommended(frameId){
+  const idx=FRAMES.findIndex(f=>f.id===frameId);
+  if(idx>=0){ selectFrame(idx); closeDiag(); showToast(`${FRAMES[idx].name}を適用しました`); }
+}
+
+function closeDiag(){
+  document.getElementById('diagPanel').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════
+// MEDIAPIPE
+// ═══════════════════════════════════════════════════════
+const video=document.getElementById('videoEl');
+let faceMesh=null,cameraReady=false,lastLandmarks=null,faceLost=0;
+let cw=0,ch=0;
+
+function setStatus(txt,mode){
+  document.getElementById('statusText').textContent=txt;
+  document.getElementById('statusDot').className='status-dot'+(mode?' '+mode:'');
+}
+function setProgress(pct,msg){
+  document.getElementById('loadingBar').style.width=pct+'%';
+  if(msg)document.getElementById('loadingMsg').textContent=msg;
+}
+
+async function initMediaPipe(){
+  setProgress(20,'Loading FaceMesh...');
+  faceMesh=new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+  faceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+  faceMesh.onResults(onResults);
+  setProgress(55,'Initializing model...');
+  await faceMesh.initialize();
+  setProgress(85,'Ready...');
+  document.getElementById('permissionScreen').classList.add('show');
+  document.getElementById('loadingScreen').classList.add('hidden');
+}
+
+async function requestCamera(){
+  document.getElementById('permissionScreen').classList.remove('show');
+  const ld=document.getElementById('loadingScreen');
+  ld.classList.remove('hidden'); setProgress(85,'Starting camera...');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}}});
+    video.srcObject=stream;
+    await new Promise(r=>video.onloadedmetadata=r);
+    await video.play();
+    cw=window.innerWidth;ch=window.innerHeight;
+    cameraReady=true;
+    setProgress(100,'Go!');
+    setTimeout(()=>{ld.classList.add('hidden');setStatus('SEARCHING','searching');startProcessing();},400);
+  }catch(e){
+    document.getElementById('permissionScreen').classList.add('show');
+    ld.classList.add('hidden');
+    showToast('カメラへのアクセスが拒否されました');
+  }
+}
+
+async function startProcessing(){
+  async function loop(){
+    if(cameraReady&&video.readyState>=2)await faceMesh.send({image:video});
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+function onResults(results){
+  cw=window.innerWidth;ch=window.innerHeight;
+  if(results.multiFaceLandmarks&&results.multiFaceLandmarks.length>0){
+    const lm=results.multiFaceLandmarks[0];
+    lastLandmarks=lm;
+    updateGlassesTransform(lm,cw,ch);
+    setStatus('FACE DETECTED','active');
+    faceLost=0;
+    // Collect frames during diagnosis scan
+    if(diagnosisActive){
+      const d=analyzeFaceShape(lm);
+      diagnosisFrames.push(d);
+    }
+  }else{
+    lastLandmarks=null;
+    faceLost++;
+    if(faceLost>10){glassesGroup.visible=false;setStatus('SEARCHING','searching');}
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════
+function thumbSVG(shape,fc,lc){
+  const c=fc.hex||'#8B4513';
+  const r=Math.round(lc.r*255),g=Math.round(lc.g*255),b=Math.round(lc.b*255);
+  const l=`rgba(${r},${g},${b},${lc.opacity<0.3?0.12:lc.opacity})`;
+  const shapes={
+    wellington:`<rect x="4" y="7" width="22" height="14" rx="3" fill="${l}" stroke="${c}" stroke-width="2"/><rect x="34" y="7" width="22" height="14" rx="3" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    boston:`<path d="M4 10 Q4 7,15 7 Q26 7,26 12 Q26 21,15 21 Q4 21,4 10Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M34 10 Q34 7,45 7 Q56 7,56 12 Q56 21,45 21 Q34 21,34 10Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    round:`<circle cx="15" cy="14" r="9" fill="${l}" stroke="${c}" stroke-width="2"/><circle cx="45" cy="14" r="9" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M24 14 Q30 17,36 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    square:`<rect x="4" y="7" width="22" height="14" rx="1" fill="${l}" stroke="${c}" stroke-width="2"/><rect x="34" y="7" width="22" height="14" rx="1" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    oval:`<ellipse cx="15" cy="14" rx="11" ry="8" fill="${l}" stroke="${c}" stroke-width="2"/><ellipse cx="45" cy="14" rx="11" ry="8" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    fox:`<path d="M4 14 Q4 7,15 7 Q24 7,26 10 Q22 21,15 21 Q4 21,4 14Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M56 14 Q56 7,45 7 Q36 7,34 10 Q38 21,45 21 Q56 21,56 14Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    browline:`<rect x="4" y="9" width="22" height="12" rx="2" fill="${l}" stroke="${c}" stroke-width="1"/><path d="M4 9 Q15 5,26 9" stroke="${c}" stroke-width="3" fill="none"/><rect x="34" y="9" width="22" height="12" rx="2" fill="${l}" stroke="${c}" stroke-width="1"/><path d="M34 9 Q45 5,56 9" stroke="${c}" stroke-width="3" fill="none"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    hexagon:`<polygon points="7,7 23,7 27,14 23,21 7,21 3,14" fill="${l}" stroke="${c}" stroke-width="2"/><polygon points="33,7 53,7 57,14 53,21 33,21 29,14" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M27 14 Q30 17,33 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    teardrop:`<path d="M15 7 Q26 7,26 14 Q26 21,15 21 Q4 21,4 12Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M45 7 Q56 7,56 14 Q56 21,45 21 Q34 21,34 12Z" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    rimless:`<ellipse cx="15" cy="14" rx="11" ry="8" fill="${l}" stroke="${c}" stroke-width="1" stroke-dasharray="3 2"/><ellipse cx="45" cy="14" rx="11" ry="8" fill="${l}" stroke="${c}" stroke-width="1" stroke-dasharray="3 2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.2" fill="none"/>`,
+    nylor:`<path d="M4 14 Q4 7,15 7 Q26 7,26 14" stroke="${c}" stroke-width="2.2" fill="none"/><path d="M34 14 Q34 7,45 7 Q56 7,56 14" stroke="${c}" stroke-width="2.2" fill="none"/><path d="M4 14 Q4 21,15 21 Q26 21,26 14" stroke="${c}" stroke-width="0.7" fill="${l}" stroke-dasharray="2 2"/><path d="M34 14 Q34 21,45 21 Q56 21,56 14" stroke="${c}" stroke-width="0.7" fill="${l}" stroke-dasharray="2 2"/><path d="M26 14 Q30 17,34 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+    octagon:`<polygon points="8,7 22,7 27,10 27,18 22,21 8,21 3,18 3,10" fill="${l}" stroke="${c}" stroke-width="2"/><polygon points="33,7 52,7 57,10 57,18 52,21 33,21 28,18 28,10" fill="${l}" stroke="${c}" stroke-width="2"/><path d="M27 14 Q30 17,33 14" stroke="${c}" stroke-width="1.5" fill="none"/>`,
+  };
+  return `<svg viewBox="0 0 60 28" xmlns="http://www.w3.org/2000/svg">${shapes[shape]||shapes.wellington}<line x1="0" y1="14" x2="4" y2="14" stroke="${c}" stroke-width="1.3"/><line x1="56" y1="14" x2="60" y2="14" stroke="${c}" stroke-width="1.3"/></svg>`;
+}
+
+function buildCarousel(){
+  const el=document.getElementById('frameCarousel');
+  el.innerHTML=FRAMES.map((f,i)=>
+    `<div class="frame-card ${i===0?'active':''}" data-idx="${i}" onclick="selectFrame(${i})">
+      <div class="frame-thumb">${thumbSVG(f.id,FRAME_COLORS[0],LENS_COLORS[0])}</div>
+      <div class="frame-name">${f.name}</div>
+    </div>`).join('');
+}
+function buildSwatches(){
+  document.getElementById('frameColors').innerHTML=FRAME_COLORS.map((c,i)=>
+    `<div class="swatch ${c.cls||''} ${i===0?'active':''}" data-type="frame" data-idx="${i}"
+      style="${c.hex?`background:${c.hex};border-color:${c.b};`:''}" title="${c.name}"
+      onclick="selectFrameColor(${i})"></div>`).join('');
+  document.getElementById('lensColors').innerHTML=LENS_COLORS.map((c,i)=>
+    `<div class="swatch ${i===0?'active':''}" data-type="lens" data-idx="${i}"
+      style="background:rgba(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)},${c.opacity});border-color:rgba(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)},0.8);" title="${c.name}"
+      onclick="selectLensColor(${i})"></div>`).join('');
+}
+
+function selectFrame(idx){
+  ST.frameIdx=idx;
+  document.querySelectorAll('.frame-card').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  document.querySelectorAll('.frame-card')[idx].scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  document.getElementById('infoFrame').textContent=FRAMES[idx].name;
+  rebuildGlasses();
+}
+function selectFrameColor(idx){
+  ST.fcolorIdx=idx;
+  document.querySelectorAll('[data-type="frame"]').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  document.getElementById('infoColor').textContent=FRAME_COLORS[idx].name;
+  const fc=FRAME_COLORS[idx],lc=LENS_COLORS[ST.lcolorIdx];
+  document.querySelectorAll('.frame-card').forEach((card,i)=>{card.querySelector('.frame-thumb').innerHTML=thumbSVG(FRAMES[i].id,fc,lc);});
+  rebuildGlasses();
+}
+function selectLensColor(idx){
+  ST.lcolorIdx=idx;
+  document.querySelectorAll('[data-type="lens"]').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  document.getElementById('infoLens').textContent=LENS_COLORS[idx].name;
+  rebuildGlasses();
+}
+function toggleFav(){
+  ST.isFaved=!ST.isFaved;
+  document.getElementById('favBadge').textContent=ST.isFaved?'🧡':'🤍';
+  ST.favCount=ST.isFaved?ST.favCount+1:Math.max(0,ST.favCount-1);
+  document.getElementById('favCount').textContent=ST.favCount;
+  showToast(ST.isFaved?'お気に入りに追加しました':'お気に入りから削除しました');
+}
+function toggleMirror(){
+  ST.mirror=!ST.mirror;
+  const s=ST.mirror?'scaleX(-1)':'scaleX(1)';
+  video.style.transform=s; threeCanvas.style.transform=s;
+  showToast(ST.mirror?'ミラー: ON':'ミラー: OFF');
+}
+function capturePhoto(){
+  const snap=document.createElement('canvas');
+  snap.width=window.innerWidth;snap.height=window.innerHeight;
+  const sc=snap.getContext('2d');
+  sc.translate(snap.width,0);sc.scale(-1,1);
+  const vr=video.getBoundingClientRect();
+  sc.drawImage(video,vr.left,vr.top,vr.width,vr.height);
+  sc.drawImage(threeCanvas,0,0,snap.width,snap.height);
+  sc.setTransform(1,0,0,1,0,0);
+  const a=document.createElement('a');
+  a.href=snap.toDataURL('image/png');
+  a.download=`lens-3d-${FRAMES[ST.frameIdx].name.toLowerCase()}.png`;
+  a.click();
+  const f=document.getElementById('flash');f.style.opacity='1';setTimeout(()=>f.style.opacity='0',120);
+  showToast(`📸 保存しました: ${FRAMES[ST.frameIdx].name}`);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+buildCarousel();
+buildSwatches();
+initMediaPipe();
+</script>
+</body>
+</html>
