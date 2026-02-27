@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Voice Bloom</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Courier+Prime&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #07070f;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    font-family: 'Cormorant Garamond', serif;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+  }
+
+  canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* Start screen */
+  #start {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    background: #07070f;
+    transition: opacity 0.8s ease;
+  }
+  #start.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #start h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    color: #f0e8d8;
+    margin-bottom: 0.4em;
+  }
+  #start p {
+    font-size: clamp(0.85rem, 2vw, 1.05rem);
+    font-style: italic;
+    color: rgba(240,232,216,0.4);
+    letter-spacing: 0.15em;
+    margin-bottom: 3rem;
+  }
+  #start .hint {
+    position: absolute;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: rgba(240,232,216,0.18);
+    font-style: normal;
+  }
+  #start-btn {
+    background: none;
+    border: 1px solid rgba(240,232,216,0.3);
+    color: #f0e8d8;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 1em 2.4em;
+    min-height: 52px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #start-btn:hover {
+    background: rgba(240,232,216,0.08);
+    border-color: rgba(240,232,216,0.7);
+  }
+
+  /* UI overlay */
+  #ui {
+    position: fixed;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 1s ease 0.5s;
+  }
+  #ui.visible { opacity: 1; }
+
+  .mode-btn {
+    background: rgba(7,7,15,0.7);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.35);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.9em 1.8em;
+    min-width: 80px;
+    min-height: 44px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .mode-btn:first-child { border-radius: 2px 0 0 2px; }
+  .mode-btn:last-child { border-radius: 0 2px 2px 0; }
+  .mode-btn:not(:first-child) { border-left: none; }
+  .mode-btn.active {
+    color: #fff;
+    border-color: rgba(255,255,255,0.5);
+  }
+  .mode-btn.active.bloom-active { background: rgba(220,80,80,0.15); color: #f4b8a0; border-color: rgba(244,184,160,0.5); }
+  .mode-btn.active.crystal-active { background: rgba(80,160,220,0.15); color: #a0d4f4; border-color: rgba(160,212,244,0.5); }
+  .mode-btn.active.ink-active { background: rgba(200,200,200,0.1); color: #e0e0e0; border-color: rgba(200,200,200,0.4); }
+
+  /* Save button */
+  #save-btn {
+    position: fixed;
+    top: calc(20px + env(safe-area-inset-top));
+    right: calc(20px + env(safe-area-inset-right));
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.3);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.7em 1.2em;
+    min-height: 44px;
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.25s ease;
+    opacity: 0;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #save-btn.visible { opacity: 1; }
+  #save-btn:hover { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.5); }
+
+  /* Prompt */
+  #prompt {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+    font-style: italic;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 0.3em;
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.6s ease;
+  }
+  #prompt.hidden { opacity: 0; }
+
+  /* Volume ring */
+  #vol-ring {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<!-- Start screen -->
+<div id="start">
+  <h1>Voice Bloom</h1>
+  <p>your voice becomes form</p>
+  <button id="start-btn">allow microphone</button>
+  <span class="hint">best experienced with headphones</span>
+</div>
+
+<!-- Main canvas -->
+<canvas id="c"></canvas>
+
+<!-- Prompt text -->
+<div id="prompt">speak</div>
+
+<!-- Mode switcher -->
+<div id="ui">
+  <button class="mode-btn active bloom-active" data-mode="bloom">Bloom</button>
+  <button class="mode-btn" data-mode="crystal">Crystal</button>
+  <button class="mode-btn" data-mode="ink">Ink</button>
+</div>
+
+<!-- Save -->
+<button id="save-btn">save image</button>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+
+let mode = 'bloom';
+let audioCtx, analyser, dataArray, freqBins;
+let isListening = false;
+let particles = [];
+let time = 0;
+let volumeSmooth = 0;
+let bassSmooth = 0;
+let trebleSmooth = 0;
+let hasMadeSound = false;
+let transitionAlpha = 1; // for mode transitions
+let bgColor = '#07070f';
+
+// ─── Resize ───────────────────────────────────────────────────────────────────
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2; cy = H / 2;
+}
+window.addEventListener('resize', () => { resize(); clearCanvas(1); });
+// Also handle orientation change on mobile
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => { resize(); clearCanvas(1); }, 200);
+});
+resize();
+
+// ─── Audio ───────────────────────────────────────────────────────────────────
+async function initAudio() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // iOS requires resume after user gesture
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+  const source = audioCtx.createMediaStreamSource(stream);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.8;
+  source.connect(analyser);
+  freqBins = analyser.frequencyBinCount;
+  dataArray = new Uint8Array(freqBins);
+  isListening = true;
+}
+
+function getAudioData() {
+  if (!isListening) return { volume: 0, bass: 0, mids: 0, treble: 0, raw: null };
+  analyser.getByteFrequencyData(dataArray);
+
+  let sum = 0, bassSum = 0, midSum = 0, treSum = 0;
+  const bassEnd = Math.floor(freqBins * 0.05);
+  const midEnd = Math.floor(freqBins * 0.35);
+  const treEnd = Math.floor(freqBins * 0.8);
+
+  for (let i = 0; i < treEnd; i++) {
+    const v = dataArray[i] / 255;
+    sum += v;
+    if (i < bassEnd) bassSum += v;
+    else if (i < midEnd) midSum += v;
+    else treSum += v;
+  }
+
+  return {
+    volume: sum / treEnd,
+    bass: bassSum / bassEnd,
+    mids: midSum / (midEnd - bassEnd),
+    treble: treSum / (treEnd - midEnd),
+    raw: dataArray
+  };
+}
+
+// ─── Particle ────────────────────────────────────────────────────────────────
+class Particle {
+  constructor(x, y, opts = {}) {
+    this.x = x; this.y = y;
+    this.vx = opts.vx || 0;
+    this.vy = opts.vy || 0;
+    this.life = 0;
+    this.maxLife = opts.maxLife || (80 + Math.random() * 120);
+    this.size = opts.size || (1 + Math.random() * 3);
+    this.color = opts.color || '#fff';
+    this.alpha = opts.alpha || 1;
+    this.spin = (Math.random() - 0.5) * 0.04;
+    this.drag = opts.drag || 0.98;
+    this.gravity = opts.gravity || 0;
+    this.angle = Math.atan2(this.vy, this.vx);
+    this.speed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+  }
+  update() {
+    this.angle += this.spin;
+    this.speed *= this.drag;
+    this.vx = Math.cos(this.angle) * this.speed;
+    this.vy = Math.sin(this.angle) * this.speed + this.gravity;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life++;
+  }
+  get progress() { return this.life / this.maxLife; }
+  get alive() { return this.life < this.maxLife; }
+}
+
+// ─── Clear canvas (mode-aware) ───────────────────────────────────────────────
+function clearCanvas(alpha) {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+}
+
+// ─── Bloom Mode ───────────────────────────────────────────────────────────────
+const bloomColors = [
+  [255, 100, 100], [255, 150, 80], [240, 100, 160],
+  [255, 200, 100], [220, 80, 120], [255, 180, 130]
+];
+
+function spawnBloomParticles(audio) {
+  const v = audio.volume;
+  if (v < 0.02) return;
+
+  const count = Math.floor(v * 40 + audio.bass * 20);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + v * 6 + audio.bass * 4 + Math.random() * 3;
+    const col = bloomColors[Math.floor(Math.random() * bloomColors.length)];
+    const alpha = 0.6 + Math.random() * 0.4;
+    const baseSize = 1.5 + audio.bass * 4 + Math.random() * 3;
+
+    particles.push(new Particle(cx, cy, {
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      maxLife: 60 + Math.random() * 100,
+      size: baseSize,
+      color: `rgba(${col[0]},${col[1]},${col[2]},${alpha})`,
+      drag: 0.96,
+      spin: (Math.random() - 0.5) * 0.06
+    }));
+
+    // Treble sparkles
+    if (audio.treble > 0.15 && Math.random() < 0.4) {
+      particles.push(new Particle(cx, cy, {
+        vx: Math.cos(angle + 0.3) * speed * 1.5,
+        vy: Math.sin(angle + 0.3) * speed * 1.5,
+        maxLife: 30 + Math.random() * 40,
+        size: 0.5 + Math.random(),
+        color: `rgba(255,240,210,${0.8 + Math.random() * 0.2})`,
+        drag: 0.94,
+      }));
+    }
+  }
+}
+
+function drawBloom(audio) {
+  clearCanvas(0.07);
+
+  // Soft central glow
+  if (volumeSmooth > 0.02) {
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80 + volumeSmooth * 200);
+    glow.addColorStop(0, `rgba(255,120,80,${volumeSmooth * 0.15})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  spawnBloomParticles(audio);
+
+  particles.forEach(p => {
+    p.update();
+    const easeOut = 1 - p.progress;
+    const size = p.size * easeOut;
+    ctx.globalAlpha = easeOut * 0.9;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.1, size), 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  particles = particles.filter(p => p.alive);
+}
+
+// ─── Crystal Mode ────────────────────────────────────────────────────────────
+const crystalColors = [
+  [80, 200, 255], [140, 100, 255], [60, 220, 200],
+  [180, 130, 255], [100, 240, 220], [200, 160, 255]
+];
+let crystalAngle = 0;
+let crystalLines = [];
+
+function drawCrystalSegment(freqs, radius, fold, angleOffset) {
+  const segAngle = (Math.PI * 2) / fold;
+  for (let f = 0; f < fold; f++) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angleOffset + f * segAngle);
+
+    const bins = Math.min(60, Math.floor(freqBins * 0.25));
+    for (let i = 0; i < bins; i++) {
+      const freq = freqs[i] / 255;
+      if (freq < 0.05) continue;
+      const r = (i / bins) * radius * (0.4 + freq * 0.9);
+      const a = (i / bins) * segAngle * 0.5;
+      const x1 = Math.cos(a) * r * 0.3;
+      const y1 = Math.sin(a) * r * 0.3;
+      const x2 = Math.cos(a) * r;
+      const y2 = Math.sin(a) * r;
+      const col = crystalColors[i % crystalColors.length];
+      ctx.globalAlpha = freq * 0.7;
+      ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},1)`;
+      ctx.lineWidth = 0.5 + freq * 2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawCrystal(audio) {
+  clearCanvas(0.12);
+
+  crystalAngle += 0.003 + volumeSmooth * 0.01;
+
+  if (!isListening || !dataArray) return;
+
+  const radius = Math.min(W, H) * 0.42;
+  const fold = 8;
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Main crystal
+  drawCrystalSegment(dataArray, radius, fold, crystalAngle);
+  // Mirror layer
+  drawCrystalSegment(dataArray, radius * 0.65, fold, -crystalAngle + Math.PI / fold);
+
+  // Central orb
+  const orbSize = 8 + volumeSmooth * 40 + bassSmooth * 30;
+  const orb = ctx.createRadialGradient(cx, cy, 0, cx, cy, orbSize);
+  orb.addColorStop(0, `rgba(180,200,255,${0.4 + volumeSmooth * 0.5})`);
+  orb.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = orb;
+  ctx.beginPath();
+  ctx.arc(cx, cy, orbSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+}
+
+// ─── Ink Mode ────────────────────────────────────────────────────────────────
+let inkParticles = [];
+let inkBg = '#f5f0e8';
+
+function spawnInkParticles(audio) {
+  const v = audio.volume;
+  if (v < 0.015) return;
+
+  const count = Math.floor(v * 30 + audio.bass * 15);
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spread = 20 + audio.bass * 60;
+    const startX = cx + (Math.random() - 0.5) * spread;
+    const startY = cy + (Math.random() - 0.5) * spread;
+    const speed = 0.3 + v * 2 + Math.random() * 1.5;
+    const darkness = 0.05 + Math.random() * 0.2;
+
+    inkParticles.push(new Particle(startX, startY, {
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      maxLife: 120 + Math.random() * 180,
+      size: 2 + audio.bass * 8 + Math.random() * 4,
+      color: `rgba(10,8,15,${darkness})`,
+      drag: 0.97,
+      gravity: 0.02 + Math.random() * 0.02,
+      spin: (Math.random() - 0.5) * 0.02
+    }));
+  }
+}
+
+function drawInk(audio) {
+  // White-ish background, very slow fade
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 0.04;
+  ctx.fillStyle = inkBg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+
+  spawnInkParticles(audio);
+
+  ctx.globalCompositeOperation = 'multiply';
+  inkParticles.forEach(p => {
+    p.update();
+    const easeOut = Math.pow(1 - p.progress, 0.5);
+    const size = p.size * easeOut;
+    ctx.globalAlpha = easeOut;
+    ctx.shadowBlur = size * 2;
+    ctx.shadowColor = 'rgba(10,8,15,0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.1, size), 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  inkParticles = inkParticles.filter(p => p.alive);
+}
+
+// ─── Main loop ───────────────────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  time++;
+
+  const audio = getAudioData();
+
+  // Smooth values
+  volumeSmooth += (audio.volume - volumeSmooth) * 0.15;
+  bassSmooth += (audio.bass - bassSmooth) * 0.15;
+  trebleSmooth += (audio.treble - trebleSmooth) * 0.15;
+
+  if (volumeSmooth > 0.03 && !hasMadeSound) {
+    hasMadeSound = true;
+    document.getElementById('prompt').classList.add('hidden');
+  }
+
+  if (mode === 'bloom') {
+    bgColor = '#07070f';
+    drawBloom(audio);
+  } else if (mode === 'crystal') {
+    bgColor = '#04060f';
+    drawCrystal(audio);
+  } else if (mode === 'ink') {
+    // Init ink bg
+    ctx.globalCompositeOperation = 'source-over';
+    if (time === 1 || window._inkInit !== mode) {
+      window._inkInit = mode;
+      ctx.fillStyle = inkBg;
+      ctx.fillRect(0, 0, W, H);
+    }
+    drawInk(audio);
+  }
+}
+
+// ─── Mode switching ───────────────────────────────────────────────────────────
+function setMode(newMode) {
+  mode = newMode;
+  particles = [];
+  inkParticles = [];
+  hasMadeSound = false;
+  document.getElementById('prompt').classList.remove('hidden');
+
+  // Reset canvas for ink mode
+  if (newMode === 'ink') {
+    ctx.fillStyle = inkBg;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.remove('active', 'bloom-active', 'crystal-active', 'ink-active');
+    if (btn.dataset.mode === newMode) {
+      btn.classList.add('active', `${newMode}-active`);
+    }
+  });
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+// ─── Start ───────────────────────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', async () => {
+  // iOS: must resume AudioContext inside user gesture
+  try {
+    document.getElementById('start-btn').textContent = 'connecting...';
+    await initAudio();
+    const startEl = document.getElementById('start');
+    startEl.classList.add('hidden');
+    document.getElementById('ui').classList.add('visible');
+    document.getElementById('save-btn').classList.add('visible');
+    loop();
+  } catch(e) {
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+    document.getElementById('start-btn').textContent = isSecure
+      ? 'microphone access denied'
+      : 'requires https';
+    document.getElementById('start-btn').style.opacity = '0.4';
+  }
+});
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
+document.getElementById('save-btn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = `voice-bloom-${mode}-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+</script>
+</body>
+</html>

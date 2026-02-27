@@ -1,0 +1,7 @@
+{
+  "title": "Voice Bloom",
+  "description": "マイクに向かって話すと声が花・結晶・墨となって広がる。Web Audio API × Canvas によるリアルタイム音声ビジュアライザー。",
+  "tags": ["audio", "visualizer", "canvas", "web-audio", "interactive", "spa"],
+  "date": "2026-02-27",
+  "type": "spa"
+}
