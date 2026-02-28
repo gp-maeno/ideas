@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One at a Time — Contact Form UI Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0d0d;
+  --surface: #161616;
+  --border: #252525;
+  --text: #e8e4dc;
+  --muted: #555;
+  --accent: #c4a97d;
+  --form-bg: #f7f4f0;
+  --form-text: #181818;
+  --form-muted: #9a9590;
+  --form-border: #e2ddd8;
+  --form-chip: #eceae6;
+  --phone-frame: #141414;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 300; overflow-x: hidden; }
+
+.pc-wrapper { display: grid; grid-template-columns: 1fr 500px; min-height: 100vh; }
+
+/* ── LEFT ── */
+.left-panel { padding: 80px 56px 80px 80px; display: flex; flex-direction: column; justify-content: center; position: sticky; top: 0; height: 100vh; overflow: hidden; }
+.label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; margin-bottom: 28px; }
+.main-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(48px, 4.5vw, 76px); font-weight: 300; line-height: 1.05; color: var(--text); margin-bottom: 48px; }
+.main-title em { font-style: italic; color: var(--accent); }
+.step-desc { position: relative; min-height: 160px; }
+.step-item { position: absolute; top: 0; left: 0; opacity: 0; transform: translateY(10px); transition: opacity .45s, transform .45s; pointer-events: none; }
+.step-item.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.step-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: .1em; margin-bottom: 10px; }
+.step-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; color: var(--text); margin-bottom: 14px; line-height: 1.2; }
+.step-body { font-size: 14px; line-height: 1.8; color: var(--muted); max-width: 360px; }
+.step-body strong { color: var(--accent); font-weight: 400; }
+.progress-dots { display: flex; gap: 8px; margin-top: 48px; }
+.pdot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all .4s; }
+.pdot.active { background: var(--accent); width: 22px; border-radius: 3px; }
+.divider { width: 40px; height: 1px; background: var(--border); margin: 48px 0 36px; }
+.footnote { font-size: 13px; color: var(--muted); line-height: 1.75; max-width: 340px; }
+
+/* ── RIGHT ── */
+.right-panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 48px 36px; min-height: 100vh; position: relative; }
+.right-panel::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 55% 35%, rgba(196,169,125,.06) 0%, transparent 65%); pointer-events: none; }
+
+/* ── iPHONE ── */
+.phone-scale { transform: scale(0.71); transform-origin: center; }
+.iphone { width: 393px; height: 852px; background: var(--phone-frame); border-radius: 54px; padding: 4px; position: relative; box-shadow: 0 0 0 1px #2e2e2e, 0 40px 80px rgba(0,0,0,.65), 0 16px 32px rgba(0,0,0,.4), inset 0 0 0 1px #363636; }
+.btn-silent, .btn-vol-up, .btn-vol-down, .btn-power { position: absolute; background: #272727; border-radius: 3px; }
+.btn-silent { left:-3px; top:148px; width:4px; height:34px; }
+.btn-vol-up { left:-3px; top:200px; width:4px; height:60px; }
+.btn-vol-down { left:-3px; top:274px; width:4px; height:60px; }
+.btn-power { right:-3px; top:218px; width:4px; height:90px; }
+.iphone-screen { width: 100%; height: 100%; background: var(--form-bg); border-radius: 50px; overflow: hidden; position: relative; }
+.dynamic-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 118px; height: 35px; background: #000; border-radius: 20px; z-index: 100; }
+.status-bar { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; align-items: flex-end; padding: 0 30px 10px; justify-content: space-between; z-index: 99; background: var(--form-bg); }
+.status-time { font-size: 15px; font-weight: 500; color: var(--form-text); letter-spacing: -.02em; }
+.status-icons { display: flex; align-items: center; gap: 6px; }
+.status-icons svg { fill: var(--form-text); }
+.home-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 130px; height: 5px; background: rgba(0,0,0,.18); border-radius: 3px; z-index: 100; }
+
+/* ── FORM APP ── */
+.form-app { position: absolute; top: 54px; left: 0; right: 0; bottom: 34px; display: flex; flex-direction: column; background: var(--form-bg); overflow: hidden; }
+.form-header { padding: 18px 26px 10px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.form-header-title { font-family: 'Cormorant Garamond', serif; font-size: 21px; font-weight: 600; color: var(--form-text); }
+.back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: none; color: var(--form-text); cursor: pointer; opacity: 0; transition: opacity .3s; }
+.back-btn.visible { opacity: 1; }
+.form-prog { padding: 0 26px 14px; display: flex; gap: 5px; flex-shrink: 0; }
+.fp { height: 3px; flex: 1; border-radius: 2px; background: var(--form-border); transition: background .4s; }
+.fp.done, .fp.active { background: var(--form-text); }
+.steps-wrap { flex: 1; position: relative; overflow: hidden; }
+.form-step { position: absolute; inset: 0; padding: 0 26px 16px; display: flex; flex-direction: column; opacity: 0; transform: translateX(32px); transition: opacity .38s, transform .38s; pointer-events: none; overflow-y: auto; scrollbar-width: none; }
+.form-step::-webkit-scrollbar { display: none; }
+.form-step.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
+.form-step.exit { opacity: 0; transform: translateX(-32px); }
+.field-label { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 300; color: var(--form-text); line-height: 1.15; margin-bottom: 5px; }
+.field-hint { font-size: 12px; color: var(--form-muted); margin-bottom: 20px; }
+
+/* ── CATEGORY: VERTICAL LIST ── */
+.cat-list { display: flex; flex-direction: column; gap: 10px; }
+
+.cat-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px; border-radius: 16px;
+  border: 1.5px solid var(--form-border); background: white;
+  cursor: pointer; transition: all .2s ease;
+  -webkit-tap-highlight-color: transparent;
+  position: relative; overflow: hidden;
+}
+.cat-row::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--form-text); opacity: 0;
+  transition: opacity .2s;
+}
+.cat-row:active::after { opacity: .05; }
+.cat-row.selected { border-color: var(--form-text); background: var(--form-text); }
+.cat-row.selected .cat-icon, .cat-row.selected .cat-name, .cat-row.selected .cat-sub { color: var(--form-bg) !important; }
+.cat-row.selected .cat-arrow { color: var(--form-bg); opacity: .5; }
+
+.cat-icon { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.cat-text { flex: 1; }
+.cat-name { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--form-text); line-height: 1.2; }
+.cat-sub { font-size: 12px; color: var(--form-muted); margin-top: 2px; }
+.cat-arrow { color: var(--form-border); font-size: 16px; flex-shrink: 0; transition: transform .2s; }
+.cat-row:hover .cat-arrow { transform: translateX(3px); }
+
+/* ── TEXT INPUT ── */
+.form-input { width: 100%; background: transparent; border: none; border-bottom: 1.5px solid var(--form-border); padding: 10px 0; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 300; color: var(--form-text); outline: none; transition: border-color .3s; }
+.form-input:focus { border-color: var(--form-text); }
+.form-input::placeholder { color: var(--form-border); }
+.next-wrap { margin-top: auto; padding-top: 16px; flex-shrink: 0; }
+.btn-next { width: 100%; padding: 15px; background: var(--form-text); color: var(--form-bg); border: none; border-radius: 13px; font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; transition: all .2s; }
+.btn-next:active { transform: scale(.98); background: #333; }
+
+/* ── MESSAGE BUILDER ── */
+.msg-builder { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* Built text area */
+.built-text-wrap {
+  background: white; border: 1.5px solid var(--form-border); border-radius: 12px;
+  padding: 11px 13px; flex-shrink: 0; position: relative; transition: border-color .3s;
+  margin-bottom: 10px;
+}
+.built-text-wrap:focus-within { border-color: var(--form-text); }
+.built-segments { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; min-height: 2px; }
+.seg-tag { display: inline-flex; align-items: center; gap: 3px; background: var(--form-chip); padding: 3px 8px 3px 10px; border-radius: 100px; font-size: 11px; color: var(--form-text); animation: pop-in .18s ease; }
+.seg-tag .rm { cursor: pointer; color: var(--form-muted); font-size: 13px; line-height: 1; transition: color .15s; padding: 0 1px; }
+.seg-tag .rm:hover { color: var(--form-text); }
+@keyframes pop-in { from { transform: scale(.75); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.built-ta { width: 100%; background: transparent; border: none; outline: none; resize: none; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--form-text); line-height: 1.65; font-weight: 300; min-height: 38px; }
+.built-ta::placeholder { color: var(--form-border); }
+.read-time { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--form-muted); text-align: right; display: block; min-height: 13px; margin-top: 2px; letter-spacing: .03em; }
+
+/* Smart suggestions */
+.suggest-header {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 7px; flex-shrink: 0;
+}
+.suggest-label {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: var(--form-muted); letter-spacing: .08em; text-transform: uppercase;
+}
+.suggest-badge {
+  font-size: 9px; padding: 2px 7px; background: var(--accent);
+  color: white; border-radius: 100px; font-family: 'DM Sans', sans-serif;
+  opacity: 0; transform: scale(.8); transition: all .3s;
+}
+.suggest-badge.visible { opacity: 1; transform: scale(1); }
+
+.suggest-scroll { flex: 1; overflow-y: auto; scrollbar-width: none; min-height: 0; }
+.suggest-scroll::-webkit-scrollbar { display: none; }
+
+.suggest-group { margin-bottom: 12px; }
+.suggest-group-label { font-size: 10px; color: var(--form-muted); letter-spacing: .06em; text-transform: uppercase; font-family: 'DM Mono', monospace; margin-bottom: 6px; padding-left: 2px; }
+
+.suggest-chips { display: flex; flex-direction: column; gap: 6px; }
+
+.schip {
+  width: 100%; text-align: left; padding: 10px 13px; border-radius: 10px;
+  border: 1.5px solid var(--form-border); background: white;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--form-text);
+  cursor: pointer; transition: all .16s; line-height: 1.4; position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.schip::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--accent); border-radius: 10px 0 0 10px;
+  opacity: 0; transition: opacity .2s;
+}
+.schip.smart::before { opacity: 1; }
+.schip:active { background: var(--form-text); color: var(--form-bg); border-color: var(--form-text); transform: scale(.98); }
+.schip.used { background: var(--form-chip); border-color: var(--form-chip); color: var(--form-muted); }
+.schip:active::before { opacity: 0; }
+.schip .csub { display: block; font-size: 10px; color: var(--form-muted); margin-top: 2px; }
+.schip:active .csub, .schip.used .csub { opacity: .6; }
+
+/* Animated chip refresh */
+@keyframes chip-refresh {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.schip.refreshed { animation: chip-refresh .25s ease both; }
+
+/* ── CONFIRM ── */
+.confirm-card { background: white; border: 1.5px solid var(--form-border); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+.c-row { padding: 8px 0; border-bottom: 1px solid var(--form-border); }
+.c-row:last-child { border-bottom: none; }
+.c-key { font-size: 10px; color: var(--form-muted); letter-spacing: .06em; text-transform: uppercase; font-family: 'DM Mono', monospace; margin-bottom: 3px; }
+.c-val { font-size: 13px; color: var(--form-text); line-height: 1.5; word-break: break-all; }
+
+/* ── SEND ── */
+.send-wrap { border-radius: 13px; overflow: hidden; }
+.btn-send { width: 100%; padding: 15px; background: var(--form-text); color: var(--form-bg); border: none; border-radius: 13px; font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; position: relative; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
+.send-prog { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(255,255,255,.14); pointer-events: none; }
+.send-lbl { position: relative; z-index: 1; }
+.send-hint { text-align: center; font-size: 11px; color: var(--form-muted); margin-top: 8px; }
+
+/* ── SUCCESS ── */
+.success-screen { position: absolute; inset: 0; background: var(--form-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 28px; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 20; }
+.success-screen.visible { opacity: 1; pointer-events: auto; }
+.envelope { font-size: 52px; margin-bottom: 24px; display: block; }
+.envelope.fly { animation: flyup 1.1s cubic-bezier(.25,.46,.45,.94) forwards; }
+@keyframes flyup { 0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; } 60% { transform: translateY(-70px) scale(1.15) rotate(-6deg); opacity: 1; } 100% { transform: translateY(-180px) scale(.6) rotate(8deg); opacity: 0; } }
+.success-title { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 300; color: var(--form-text); text-align: center; margin-bottom: 10px; }
+.success-sub { font-size: 13px; color: var(--form-muted); text-align: center; line-height: 1.7; max-width: 220px; }
+.undo-bar { position: absolute; bottom: 48px; left: 22px; right: 22px; background: var(--form-text); color: var(--form-bg); padding: 12px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; opacity: 0; transform: translateY(16px); transition: all .4s; }
+.undo-bar.visible { opacity: 1; transform: translateY(0); }
+.undo-btn { color: var(--accent); cursor: pointer; font-weight: 500; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; }
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .pc-wrapper { grid-template-columns: 1fr; }
+  .left-panel { display: none; }
+  .right-panel { border-left: none; padding: 0; background: var(--form-bg); min-height: 100dvh; align-items: stretch; }
+  .right-panel::before { display: none; }
+  .phone-scale { transform: none; width: 100%; height: 100dvh; }
+  .iphone { width: 100%; height: 100%; border-radius: 0; padding: 0; background: none; box-shadow: none; }
+  .btn-silent,.btn-vol-up,.btn-vol-down,.btn-power,.dynamic-island,.status-bar,.home-bar { display: none; }
+  .iphone-screen { border-radius: 0; }
+  .form-app { top: 0; bottom: 0; }
+}
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.left-panel > * { animation: fade-up .7s ease both; }
+.left-panel > *:nth-child(1) { animation-delay: .1s; }
+.left-panel > *:nth-child(2) { animation-delay: .2s; }
+.left-panel > *:nth-child(3) { animation-delay: .3s; }
+.left-panel > *:nth-child(4) { animation-delay: .45s; }
+.left-panel > *:nth-child(5) { animation-delay: .55s; }
+.left-panel > *:nth-child(6) { animation-delay: .65s; }
+</style>
+</head>
+<body>
+<div class="pc-wrapper">
+
+  <!-- ═══ LEFT ═══ -->
+  <div class="left-panel">
+    <div class="label">Ideas Lab — UI Concept</div>
+    <h1 class="main-title">One at<br><em>a Time.</em></h1>
+    <div class="step-desc">
+      <div class="step-item active" data-step="0">
+        <div class="step-num">01 — カテゴリ選択</div>
+        <h2 class="step-title">縦に並べて、迷わせない。</h2>
+        <p class="step-body">大きなタップボタンを縦に並べ、アイコン・説明文付きで選択肢を明確に。<strong>1タップで即座に次のステップへ</strong>自動遷移する。</p>
+      </div>
+      <div class="step-item" data-step="1">
+        <div class="step-num">02 — 氏名入力</div>
+        <h2 class="step-title">一度に、ひとつだけ。</h2>
+        <p class="step-body"><strong>1フィールド = 1画面</strong>の設計。入力に集中でき、何を聞かれているかが常に明確になる。</p>
+      </div>
+      <div class="step-item" data-step="2">
+        <div class="step-num">03 — メールアドレス</div>
+        <h2 class="step-title">迷わせない。</h2>
+        <p class="step-body">現在のステップだけが全面に表示され、<strong>認知負荷をゼロに近づける</strong>。進捗バーで残量が常にわかる。</p>
+      </div>
+      <div class="step-item" data-step="3">
+        <div class="step-num">04 — スマート提案</div>
+        <h2 class="step-title">入力を読んで、<br>提案が変わる。</h2>
+        <p class="step-body">フリーテキストの内容をリアルタイムで解析し、<strong>文脈に合ったフレーズを優先表示</strong>。「エラー」と書けばバグ報告向けの表現が、「提案」と書けば要望向けの締めが浮上する。</p>
+      </div>
+      <div class="step-item" data-step="4">
+        <div class="step-num">05 — 送信確認</div>
+        <h2 class="step-title">誤送信を、防ぐ。</h2>
+        <p class="step-body">送信は<strong>1.5秒の長押し</strong>でトリガー。送信後5秒間は取り消しが可能。</p>
+      </div>
+    </div>
+    <div class="progress-dots">
+      <div class="pdot active"></div><div class="pdot"></div>
+      <div class="pdot"></div><div class="pdot"></div><div class="pdot"></div>
+    </div>
+    <div class="divider"></div>
+    <p class="footnote">お問い合わせフォームは10年以上、その形を変えていない。<br>このコンセプトはスマートフォンネイティブな体験を<br>前提に、全体を再設計したUI実験です。</p>
+  </div>
+
+  <!-- ═══ RIGHT ═══ -->
+  <div class="right-panel">
+    <div class="phone-scale">
+      <div class="iphone">
+        <div class="btn-silent"></div><div class="btn-vol-up"></div>
+        <div class="btn-vol-down"></div><div class="btn-power"></div>
+        <div class="iphone-screen">
+          <div class="dynamic-island"></div>
+          <div class="status-bar">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="0" width="2.5" height="12" rx="1" opacity=".3"/></svg>
+              <svg width="15" height="11" viewBox="0 0 15 11"><path d="M7.5 2.5C9.8 2.5 11.9 3.4 13.4 4.9L14.8 3.5C12.9 1.7 10.3.5 7.5.5 4.7.5 2.1 1.7.2 3.5L1.6 4.9C3.1 3.4 5.2 2.5 7.5 2.5Z" opacity=".3"/><path d="M7.5 5.5C8.9 5.5 10.2 6.1 11.1 7L12.5 5.6C11.2 4.3 9.4 3.5 7.5 3.5 5.6 3.5 3.8 4.3 2.5 5.6L3.9 7C4.8 6.1 6.1 5.5 7.5 5.5Z"/><circle cx="7.5" cy="10" r="1.5"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="#181818" stroke-width="1" fill="none"/><rect x="22.5" y="3.5" width="2.5" height="5" rx="1.5" fill="#181818" opacity=".4"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="#181818"/></svg>
+            </div>
+          </div>
+
+          <div class="form-app">
+            <div class="form-header">
+              <button class="back-btn" id="backBtn">
+                <svg width="9" height="16" viewBox="0 0 9 16" fill="none"><path d="M8 1L1 8L8 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+              <span class="form-header-title">お問い合わせ</span>
+              <div style="width:32px"></div>
+            </div>
+            <div class="form-prog">
+              <div class="fp active" id="fp0"></div><div class="fp" id="fp1"></div>
+              <div class="fp" id="fp2"></div><div class="fp" id="fp3"></div><div class="fp" id="fp4"></div>
+            </div>
+
+            <div class="steps-wrap">
+
+              <!-- STEP 0: CATEGORY -->
+              <div class="form-step active" id="step0">
+                <p class="field-label">ご用件を<br>選んでください。</p>
+                <p class="field-hint">タップすると次のステップに進みます</p>
+                <div class="cat-list">
+                  <div class="cat-row" onclick="selectCat(this,'ご質問')">
+                    <span class="cat-icon">🙋</span>
+                    <div class="cat-text"><div class="cat-name">ご質問</div><div class="cat-sub">製品・サービスに関するご質問</div></div>
+                    <span class="cat-arrow">›</span>
+                  </div>
+                  <div class="cat-row" onclick="selectCat(this,'ご要望')">
+                    <span class="cat-icon">💡</span>
+                    <div class="cat-text"><div class="cat-name">ご要望</div><div class="cat-sub">ご意見・機能改善のご提案</div></div>
+                    <span class="cat-arrow">›</span>
+                  </div>
+                  <div class="cat-row" onclick="selectCat(this,'バグ報告')">
+                    <span class="cat-icon">🐛</span>
+                    <div class="cat-text"><div class="cat-name">バグ報告</div><div class="cat-sub">不具合・エラーのご連絡</div></div>
+                    <span class="cat-arrow">›</span>
+                  </div>
+                  <div class="cat-row" onclick="selectCat(this,'その他')">
+                    <span class="cat-icon">📬</span>
+                    <div class="cat-text"><div class="cat-name">その他</div><div class="cat-sub">上記以外のご連絡</div></div>
+                    <span class="cat-arrow">›</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 1: NAME -->
+              <div class="form-step" id="step1">
+                <p class="field-label">お名前を<br>教えてください。</p>
+                <p class="field-hint">姓名の順でご入力ください</p>
+                <input type="text" class="form-input" id="inputName" placeholder="山田 太郎" autocomplete="name">
+                <div class="next-wrap"><button class="btn-next" onclick="goNext(1)">次へ</button></div>
+              </div>
+
+              <!-- STEP 2: EMAIL -->
+              <div class="form-step" id="step2">
+                <p class="field-label">メールアドレス<br>は何ですか？</p>
+                <p class="field-hint">返信先として使用します</p>
+                <input type="email" class="form-input" id="inputEmail" placeholder="your@email.com" autocomplete="email" inputmode="email">
+                <div class="next-wrap"><button class="btn-next" onclick="goNext(2)">次へ</button></div>
+              </div>
+
+              <!-- STEP 3: MESSAGE BUILDER -->
+              <div class="form-step" id="step3">
+                <p class="field-label" style="font-size:25px;margin-bottom:4px;">内容を<br>組み立てましょう。</p>
+                <p class="field-hint" style="margin-bottom:10px;">入力内容に合わせてフレーズが変化します</p>
+
+                <div class="msg-builder">
+                  <!-- Built area -->
+                  <div class="built-text-wrap">
+                    <div class="built-segments" id="builtSegs"></div>
+                    <textarea class="built-ta" id="freeText" placeholder="ここに内容を入力すると、下のフレーズ候補が変化します…" rows="3" oninput="onInput()"></textarea>
+                    <span class="read-time" id="readTime"></span>
+                  </div>
+
+                  <!-- Smart suggest header -->
+                  <div class="suggest-header">
+                    <span class="suggest-label">フレーズ候補</span>
+                    <span class="suggest-badge" id="smartBadge">✦ スマート提案中</span>
+                  </div>
+
+                  <!-- Suggestions -->
+                  <div class="suggest-scroll" id="suggestScroll">
+                    <!-- populated by JS -->
+                  </div>
+                </div>
+
+                <div class="next-wrap"><button class="btn-next" onclick="goNext(3)">内容を確認する</button></div>
+              </div>
+
+              <!-- STEP 4: CONFIRM -->
+              <div class="form-step" id="step4">
+                <p class="field-label" style="font-size:24px;margin-bottom:16px;">送信前に<br>ご確認ください。</p>
+                <div class="confirm-card">
+                  <div class="c-row"><div class="c-key">種別</div><div class="c-val" id="cCat">—</div></div>
+                  <div class="c-row"><div class="c-key">氏名</div><div class="c-val" id="cName">—</div></div>
+                  <div class="c-row"><div class="c-key">メール</div><div class="c-val" id="cEmail">—</div></div>
+                  <div class="c-row" style="border-bottom:none"><div class="c-key">内容</div><div class="c-val" id="cMsg" style="white-space:pre-wrap;font-size:12px">—</div></div>
+                </div>
+                <div class="send-wrap">
+                  <button class="btn-send" id="sendBtn">
+                    <div class="send-prog" id="sendProg"></div>
+                    <div class="send-lbl" id="sendLbl">長押しで送信</div>
+                  </button>
+                </div>
+                <p class="send-hint">1.5秒押し続けると送信されます</p>
+              </div>
+
+            </div><!-- steps-wrap -->
+
+            <!-- SUCCESS -->
+            <div class="success-screen" id="successScreen">
+              <span class="envelope" id="envelope">✉️</span>
+              <h2 class="success-title">送信しました。</h2>
+              <p class="success-sub">お問い合わせを受け付けました。<br>2〜3営業日以内にご返信いたします。</p>
+              <div class="undo-bar" id="undoBar">
+                <span id="undoCnt">5秒以内なら取り消せます</span>
+                <button class="undo-btn" onclick="undoSend()">取り消す</button>
+              </div>
+            </div>
+          </div><!-- form-app -->
+          <div class="home-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════
+// STATE
+// ══════════════════════════════
+let currentStep = 0;
+let selCat = '';
+const segs = [];
+let sidCnt = 0;
+let suggestDebounce = null;
+
+// ══════════════════════════════
+// ALL PHRASES with keyword triggers
+// ══════════════════════════════
+const ALL_PHRASES = [
+  // ─ 挨拶 ─
+  { text: 'お世話になっております。', group: '挨拶', keywords: [], always: true },
+  { text: '初めてご連絡いたします。', group: '挨拶', keywords: ['初めて', 'はじめ', '初'], always: false },
+  { text: 'いつもお世話になっております。', group: '挨拶', keywords: ['いつも'], always: false },
+  { text: '突然のご連絡、失礼いたします。', group: '挨拶', keywords: ['突然', '失礼'], always: false },
+  { text: '平素より大変お世話になっております。', group: '挨拶', keywords: ['平素', '大変'], always: false },
+
+  // ─ 状況説明 ─
+  { text: '先日ご購入した商品について、', group: '状況説明', keywords: ['購入', '買', '商品', '注文', 'ご購入'] },
+  { text: 'ご利用の際にエラーが発生しました。', group: '状況説明', keywords: ['エラー', 'error', '不具合', 'バグ', 'bug', '動かない', '壊れ'] },
+  { text: '以下の手順で操作した際に問題が起きました：', group: '状況説明', keywords: ['手順', '操作', 'ステップ', '問題', 'エラー', 'バグ'] },
+  { text: '改善のご提案があり、ご連絡いたしました。', group: '状況説明', keywords: ['提案', '改善', '要望', 'ご提案', 'ご要望', '機能'] },
+  { text: '現在のご利用環境：', group: '状況説明', keywords: ['環境', 'OS', 'ブラウザ', 'Safari', 'Chrome', 'iPhone', 'Android', 'Mac', 'Windows'] },
+  { text: '添付のスクリーンショットをご参照ください。', group: '状況説明', keywords: ['画像', 'スクショ', 'スクリーンショット', '写真', '添付'] },
+  { text: '○月○日より事象が発生しております。', group: '状況説明', keywords: ['日', '月', '先日', '昨日', '最近', '最初', 'から'] },
+  { text: '再現率は100%で、毎回発生します。', group: '状況説明', keywords: ['毎回', '必ず', '常に', '再現', '100%'] },
+  { text: '課金・請求に関するお問い合わせです。', group: '状況説明', keywords: ['課金', '請求', '支払', '料金', '金額', '請求書', 'クレジット'] },
+  { text: 'アカウントにログインできない状況です。', group: '状況説明', keywords: ['ログイン', 'パスワード', 'アカウント', '認証', 'サインイン'] },
+
+  // ─ 依頼 ─
+  { text: 'ご確認いただけますでしょうか。', group: '依頼', keywords: [], always: true },
+  { text: 'お手数をおかけしますが、ご対応をお願いいたします。', group: '依頼', keywords: ['対応', 'お願い'] },
+  { text: '至急ご対応いただけますと幸いです。', group: '依頼', keywords: ['急', '至急', '緊急', '早急', 'すぐ', 'できるだけ早く'] },
+  { text: 'ご回答をお待ちしております。', group: '依頼', keywords: ['回答', '返信', 'お返事', '返答'] },
+  { text: 'ご検討のほどよろしくお願いいたします。', group: '依頼', keywords: ['検討', '提案', '改善', '要望'] },
+  { text: '返金・キャンセルをご対応いただけますか。', group: '依頼', keywords: ['返金', 'キャンセル', '取消', '取り消し', '払い戻し'] },
+
+  // ─ 締め ─
+  { text: 'よろしくお願いいたします。', group: '締め', keywords: [], always: true },
+  { text: '何卒よろしくお願い申し上げます。', group: '締め', keywords: [] },
+  { text: '引き続きどうぞよろしくお願いいたします。', group: '締め', keywords: [] },
+  { text: 'ご多忙のところ恐れ入りますが、よろしくお願いいたします。', group: '締め', keywords: ['お忙し', '多忙', 'ご多忙'] },
+  { text: 'ご返信不要です。', group: '締め', keywords: ['返信不要', 'ご報告', '報告', 'お知らせ'] },
+];
+
+// ══════════════════════════════
+// SMART SUGGEST ENGINE
+// ══════════════════════════════
+function getSmartSuggestions(inputText) {
+  const text = inputText.toLowerCase();
+  const usedTexts = new Set(segs.map(s => s.text));
+
+  // Score each phrase
+  const scored = ALL_PHRASES.map(p => {
+    let score = 0;
+    let isSmart = false;
+    if (p.always) score += 1;
+
+    p.keywords.forEach(kw => {
+      if (text.includes(kw.toLowerCase())) {
+        score += 10;
+        isSmart = true;
+      }
+    });
+
+    return { ...p, score, isSmart, used: usedTexts.has(p.text) };
+  });
+
+  // Group by category, sort smart ones first
+  const groups = {};
+  scored.forEach(p => {
+    if (p.score > 0 || p.always) {
+      if (!groups[p.group]) groups[p.group] = [];
+      groups[p.group].push(p);
+    }
+  });
+
+  // Within each group, sort by score desc
+  Object.keys(groups).forEach(g => {
+    groups[g].sort((a, b) => b.score - a.score);
+    groups[g] = groups[g].slice(0, 4); // max 4 per group
+  });
+
+  return groups;
+}
+
+function getDefaultSuggestions() {
+  const usedTexts = new Set(segs.map(s => s.text));
+  const defaults = {
+    '挨拶': ALL_PHRASES.filter(p => p.group === '挨拶').slice(0, 3),
+    '依頼': ALL_PHRASES.filter(p => p.group === '依頼').slice(0, 3),
+    '締め': ALL_PHRASES.filter(p => p.group === '締め').slice(0, 3),
+  };
+  Object.keys(defaults).forEach(g => {
+    defaults[g] = defaults[g].map(p => ({ ...p, score: 1, isSmart: false, used: usedTexts.has(p.text) }));
+  });
+  return defaults;
+}
+
+function renderSuggestions(groups, isSmart) {
+  const scroll = document.getElementById('suggestScroll');
+  const badge = document.getElementById('smartBadge');
+  badge.classList.toggle('visible', isSmart);
+
+  const order = ['挨拶', '状況説明', '依頼', '締め'];
+  const html = order
+    .filter(g => groups[g] && groups[g].length > 0)
+    .map(g => {
+      const chips = groups[g].map((p, i) => {
+        const usedCls = p.used ? ' used' : '';
+        const smartCls = (isSmart && p.isSmart) ? ' smart' : '';
+        const delay = i * 0.04;
+        return `<button class="schip${usedCls}${smartCls} refreshed" style="animation-delay:${delay}s"
+          onclick="addChip(this,'${esc(p.text)}')">${esc(p.text)}</button>`;
+      }).join('');
+      return `<div class="suggest-group">
+        <div class="suggest-group-label">${g}</div>
+        <div class="suggest-chips">${chips}</div>
+      </div>`;
+    }).join('');
+
+  scroll.innerHTML = html;
+}
+
+// Input handler with debounce
+function onInput() {
+  updateRT();
+  clearTimeout(suggestDebounce);
+  suggestDebounce = setTimeout(() => {
+    const text = document.getElementById('freeText').value.trim();
+    if (text.length < 4) {
+      renderSuggestions(getDefaultSuggestions(), false);
+    } else {
+      const groups = getSmartSuggestions(text);
+      const hasSmart = Object.values(groups).some(arr => arr.some(p => p.isSmart));
+      // Merge with defaults for empty groups
+      const defaults = getDefaultSuggestions();
+      const merged = { ...defaults, ...groups };
+      renderSuggestions(merged, hasSmart);
+    }
+  }, 280);
+}
+
+// ══════════════════════════════
+// SEGMENT / CHIP
+// ══════════════════════════════
+function addChip(btn, text) {
+  if (btn.classList.contains('used')) {
+    const idx = segs.findIndex(s => s.text === text);
+    if (idx !== -1) {
+      segs[idx].el.style.cssText = 'opacity:0;transform:scale(.75);transition:opacity .18s,transform .18s;';
+      const el = segs[idx].el;
+      setTimeout(() => el.remove(), 180);
+      segs.splice(idx, 1);
+      // un-mark all matching buttons
+      document.querySelectorAll('.schip').forEach(b => {
+        if (b.onclick && b.onclick.toString().includes(esc(text).replace(/'/g,"\\'"))) {
+          // simpler: just re-render
+        }
+      });
+      btn.classList.remove('used');
+      onInput();
+    }
+    return;
+  }
+  const id = ++sidCnt;
+  const tag = document.createElement('span');
+  tag.className = 'seg-tag';
+  tag.dataset.id = id;
+  const label = text.length > 16 ? text.slice(0, 15) + '…' : text;
+  tag.innerHTML = `<span>${esc(label)}</span><span class="rm" onclick="rmSeg(${id})">×</span>`;
+  document.getElementById('builtSegs').appendChild(tag);
+  segs.push({ id, text, el: tag });
+  btn.classList.add('used');
+  updateRT();
+}
+
+function rmSeg(id) {
+  const idx = segs.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const s = segs[idx];
+  s.el.style.cssText = 'opacity:0;transform:scale(.75);transition:opacity .18s,transform .18s;';
+  setTimeout(() => s.el.remove(), 180);
+  segs.splice(idx, 1);
+  onInput(); // re-render to un-mark used buttons
+}
+
+function getFullText() {
+  const parts = segs.map(s => s.text);
+  const free = document.getElementById('freeText').value.trim();
+  if (free) parts.push(free);
+  return parts.join('\n');
+}
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+
+function updateRT() {
+  const t = getFullText(), el = document.getElementById('readTime');
+  if (!t.length) { el.textContent = ''; return; }
+  const s = Math.ceil(t.length / 400 * 60);
+  el.textContent = s < 60 ? `📖 約${s}秒` : `📖 約${Math.ceil(s/60)}分`;
+}
+
+// ══════════════════════════════
+// NAVIGATION
+// ══════════════════════════════
+function selectCat(tile, name) {
+  document.querySelectorAll('.cat-row').forEach(r => r.classList.remove('selected'));
+  tile.classList.add('selected');
+  selCat = name;
+  setTimeout(() => goNext(0), 240);
+}
+
+function goNext(from) {
+  const to = from + 1;
+  if (to >= 5) return;
+  const cur = document.getElementById('step' + from);
+  cur.classList.add('exit');
+  setTimeout(() => cur.classList.remove('active', 'exit'), 380);
+  setTimeout(() => {
+    document.getElementById('step' + to).classList.add('active');
+    currentStep = to;
+    syncUI();
+    if (to === 3) renderSuggestions(getDefaultSuggestions(), false);
+    if (to === 4) fillConfirm();
+  }, 190);
+}
+
+function goBack() {
+  if (currentStep === 0) return;
+  const from = currentStep, to = currentStep - 1;
+  const cur = document.getElementById('step' + from);
+  cur.style.cssText = 'opacity:0;transform:translateX(32px);transition:opacity .3s,transform .3s;pointer-events:none;';
+  setTimeout(() => { cur.classList.remove('active'); cur.style.cssText = ''; }, 300);
+  const prev = document.getElementById('step' + to);
+  prev.style.cssText = 'transform:translateX(-32px);opacity:0;transition:none;';
+  setTimeout(() => {
+    prev.classList.add('active');
+    prev.style.cssText = 'transition:opacity .3s,transform .3s;';
+    setTimeout(() => prev.style.cssText = '', 320);
+  }, 30);
+  currentStep = to;
+  syncUI();
+}
+
+function syncUI() {
+  for (let i = 0; i < 5; i++) {
+    const d = document.getElementById('fp' + i);
+    d.className = 'fp';
+    if (i < currentStep) d.classList.add('done');
+    else if (i === currentStep) d.classList.add('active');
+  }
+  document.getElementById('backBtn').classList.toggle('visible', currentStep > 0);
+  document.querySelectorAll('.step-item').forEach(el => el.classList.remove('active'));
+  const si = document.querySelector(`.step-item[data-step="${currentStep}"]`);
+  if (si) si.classList.add('active');
+  document.querySelectorAll('.pdot').forEach((d, i) => {
+    d.className = 'pdot'; if (i === currentStep) d.classList.add('active');
+  });
+}
+
+// ══════════════════════════════
+// CONFIRM + SEND
+// ══════════════════════════════
+function fillConfirm() {
+  document.getElementById('cCat').textContent = selCat || '—';
+  document.getElementById('cName').textContent = document.getElementById('inputName').value || '—';
+  document.getElementById('cEmail').textContent = document.getElementById('inputEmail').value || '—';
+  document.getElementById('cMsg').textContent = getFullText() || '—';
+}
+
+let pressT = null;
+const HOLD = 1500;
+function startPress() {
+  const p = document.getElementById('sendProg'), l = document.getElementById('sendLbl');
+  p.style.transition = `width ${HOLD}ms linear`; p.style.width = '100%';
+  l.textContent = '送信中…';
+  pressT = setTimeout(doSend, HOLD);
+}
+function cancelPress() {
+  clearTimeout(pressT);
+  const p = document.getElementById('sendProg'), l = document.getElementById('sendLbl');
+  p.style.transition = 'width .3s ease'; p.style.width = '0%';
+  l.textContent = '長押しで送信';
+}
+function doSend() {
+  document.getElementById('successScreen').classList.add('visible');
+  setTimeout(() => document.getElementById('envelope').classList.add('fly'), 250);
+  setTimeout(() => { document.getElementById('undoBar').classList.add('visible'); startUndo(); }, 500);
+}
+let undoT, undoN;
+function startUndo() {
+  undoN = 5; clearInterval(undoT);
+  undoT = setInterval(() => {
+    undoN--;
+    document.getElementById('undoCnt').textContent = `${undoN}秒以内なら取り消せます`;
+    if (undoN <= 0) { clearInterval(undoT); document.getElementById('undoBar').classList.remove('visible'); }
+  }, 1000);
+}
+function undoSend() {
+  clearInterval(undoT);
+  document.getElementById('successScreen').classList.remove('visible');
+  document.getElementById('undoBar').classList.remove('visible');
+  document.getElementById('envelope').classList.remove('fly');
+  cancelPress();
+}
+
+const sb = document.getElementById('sendBtn');
+sb.addEventListener('mousedown', startPress);
+sb.addEventListener('touchstart', startPress, { passive: true });
+['mouseup','mouseleave','touchend','touchcancel'].forEach(e => sb.addEventListener(e, cancelPress));
+document.getElementById('backBtn').addEventListener('click', goBack);
+
+syncUI();
+</script>
+</body>
+</html>
