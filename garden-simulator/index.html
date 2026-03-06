@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Garden Simulator</title>
+<link rel="stylesheet" href="./assets/css/garden.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <a href="../" class="header__back">&larr; Gallery</a>
+    <h1 class="header__title">Garden Simulator</h1>
+    <span id="count-display" class="header__actions" style="font-size:12px;color:var(--text-secondary);">0/30</span>
+  </header>
+
+  <!-- メインビュー -->
+  <div id="main-view" class="main-view">
+    <!-- カメラ映像 -->
+    <video id="camera-video" class="camera-video hidden" playsinline muted></video>
+    <!-- 撮影写真 -->
+    <img id="photo-image" class="photo-image hidden" alt="撮影した写真">
+    <!-- Three.jsオーバーレイ -->
+    <canvas id="three-canvas" class="three-canvas"></canvas>
+
+    <!-- 初期画面 -->
+    <div id="start-screen" class="start-screen">
+      <div class="start-screen__icon">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M18 4C18 4 12 10 12 18C12 22 14 26 18 28C22 26 24 22 24 18C24 10 18 4 18 4Z" fill="#22c55e"/>
+          <path d="M18 28V34" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M8 16C8 16 12 14 18 18" stroke="#22c55e" stroke-width="2" stroke-linecap="round"/>
+          <path d="M28 14C28 14 24 13 18 18" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="start-screen__title">Garden Simulator</h2>
+      <p class="start-screen__desc">
+        庭の写真を撮影して、植物や花壇を自由に配置。
+        ガーデニングのイメージをシミュレーションできます。
+      </p>
+      <div class="start-screen__buttons">
+        <button id="btn-camera" class="btn btn--primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          カメラで撮影
+        </button>
+        <button id="btn-upload" class="btn btn--secondary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          画像をアップロード
+        </button>
+      </div>
+    </div>
+
+    <!-- 選択中の植物操作パネル -->
+    <div id="selection-controls" class="selection-controls hidden">
+      <button id="btn-scale-up" class="btn btn--secondary btn--icon" title="拡大">+</button>
+      <button id="btn-scale-down" class="btn btn--secondary btn--icon" title="縮小">&minus;</button>
+      <button id="btn-delete" class="btn btn--danger btn--icon" title="削除">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- プリセットパネル -->
+    <div id="preset-panel" class="preset-panel">
+      <div class="preset-panel__title">プリセットを選択</div>
+      <div id="preset-grid" class="preset-panel__grid"></div>
+    </div>
+
+    <!-- ローディング -->
+    <div id="loading" class="loading hidden">
+      <div class="loading__spinner"></div>
+    </div>
+  </div>
+
+  <!-- ツールバー -->
+  <div id="toolbar" class="toolbar hidden">
+    <button id="btn-retake" class="btn btn--secondary btn--small">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      </svg>
+      やり直し
+    </button>
+    <button id="btn-preset" class="btn btn--secondary btn--small">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      プリセット
+    </button>
+    <button id="btn-plants" class="btn btn--primary btn--small">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      植物
+    </button>
+    <button id="btn-clear" class="btn btn--secondary btn--small">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      クリア
+    </button>
+  </div>
+
+  <!-- 植物パレット -->
+  <div id="palette" class="palette">
+    <div id="palette-tabs" class="palette__tabs"></div>
+    <div id="palette-items" class="palette__items"></div>
+  </div>
+
+  <!-- トースト -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ファイル入力 -->
+  <input id="file-input" class="file-input" type="file" accept="image/*" capture="environment">
+
+</div>
+
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<!-- アプリケーションモジュール -->
+<script src="./assets/js/camera.js"></script>
+<script src="./assets/js/plants.js"></script>
+<script src="./assets/js/placement.js"></script>
+<script src="./assets/js/presets.js"></script>
+<script src="./assets/js/garden.js"></script>
+</body>
+</html>

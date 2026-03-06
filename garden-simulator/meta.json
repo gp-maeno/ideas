@@ -1,0 +1,7 @@
+{
+  "title": "Garden Simulator",
+  "description": "庭の写真に植物や花壇を配置してガーデニングをシミュレーション",
+  "tags": ["three.js", "camera", "AR", "simulation"],
+  "date": "2026-03-06",
+  "type": "three.js"
+}
