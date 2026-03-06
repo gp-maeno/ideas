@@ -96,6 +96,7 @@ html, body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 1;
 }
 
 .photo-image {
@@ -105,6 +106,7 @@ html, body {
   height: 100%;
   object-fit: contain;
   background: #000;
+  z-index: 1;
 }
 
 /* Three.jsキャンバス */
@@ -114,6 +116,7 @@ html, body {
   width: 100%;
   height: 100%;
   pointer-events: auto;
+  z-index: 2;
 }
 
 /* 初期画面（カメラ未起動時） */
@@ -346,7 +349,7 @@ html, body {
 
 .preset-panel {
   position: absolute;
-  bottom: 100%;
+  bottom: 0;
   left: 0;
   right: 0;
   background: rgba(15, 52, 96, 0.95);
@@ -358,10 +361,12 @@ html, body {
   transform: translateY(100%);
   transition: transform 0.3s ease;
   z-index: 15;
+  pointer-events: none;
 }
 
 .preset-panel.open {
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 .preset-panel__title {
@@ -499,4 +504,12 @@ html, body {
 
 .file-input {
   display: none;
+}
+
+/* ========================================
+   ユーティリティ
+   ======================================== */
+
+.hidden {
+  display: none !important;
 }
